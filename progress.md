@@ -31,16 +31,19 @@
 - 新增 Allure 映射单测并通过
 - 新增报告链路最小集成测试：覆盖失败样例与多 case 聚合
 - `--run-pytest` 输出新增 `report.allureBatch` 聚合结果（summary + per-case 结果）
+- 新增 CLI 驱动选择参数 `--driver`（`dry-run` / `playwright`）
+- 新增 Playwright 桥接驱动接入点评估：可识别依赖缺失与入口就绪状态
+- 新增 Playwright 桥接驱动与 CLI 驱动选择测试并通过（当前总计 23 条测试）
 
 ## 进行中
 
-- 评估真实浏览器驱动接入点（与断言执行器对齐）
+- 设计 Allure 实体落盘格式（result/container/attachment）
 
 ## 下一步
 
-1. 评估真实浏览器驱动接入点（与断言执行器对齐）
-2. 设计 Allure 实体落盘格式（result/container/attachment）
-3. 增加调度链路的 Allure 落盘输出（allure-results 目录）
+1. 设计 Allure 实体落盘格式（result/container/attachment）
+2. 增加调度链路的 Allure 落盘输出（allure-results 目录）
+3. 规划 Playwright 任务映射策略（DSL task -> 浏览器动作）
 
 ## 风险
 

@@ -42,6 +42,16 @@ python -m aut.runner.cli --case cases/product/create_vpc.yaml --var ASCM_URL=htt
 
 当使用 `--run` 执行时，输出中会包含 `report.allure` 字段，用于承载步骤、断言与失败上下文的最小映射。
 
+可选参数：
+
+- `--driver`：执行驱动选择，当前支持 `dry-run`（默认）与 `playwright`（桥接接入点评估）
+
+示例（Playwright 桥接接入点评估）：
+
+```bash
+python -m aut.runner.cli --case cases/product/create_vpc.yaml --run --driver playwright --replay-dir .aut/replays --var ASCM_URL=http://example.com --var USERNAME=tester --var PASSWORD=secret --var DEFAULT_ORG_ID=org-1 --var VPC_NAME_UNIQUE=vpc-demo
+```
+
 ## 运行测试
 
 ```bash
@@ -62,4 +72,4 @@ python -m aut.runner.cli --run-pytest --case-root cases --case-filter vpc --repl
 
 ## 当前说明
 
-当前 CLI 不会真正操作浏览器，而是输出解析后的执行计划。这一步用于先稳定 DSL、变量系统和前置步骤展开逻辑，后续再接入 driver、LLM 和 replay。
+当前 `playwright` 驱动为桥接模式：用于验证依赖探测与接入点连通性，尚未把 DSL `task` 映射为真实浏览器动作。默认 `dry-run` 仍用于稳定主链路。

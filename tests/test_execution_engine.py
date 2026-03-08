@@ -3,6 +3,7 @@ from pathlib import Path
 from aut.dsl.models import ResolvedCase, ResolvedStep
 from aut.runner import DryRunDriver, ExecutionContext, ExecutionEngine
 from aut.runner.contracts import Driver, StepResult
+from aut.runner.playwright_bridge_driver import PlaywrightBridgeDriver
 
 
 def test_execution_engine_runs_all_steps_with_dry_run_driver() -> None:
@@ -113,3 +114,33 @@ def test_execution_engine_stops_when_assertion_failed() -> None:
     assert results[-1].success is False
     assert "assertion failed" in results[-1].message
     assert results[-1].artifacts["assertions"][0]["reason"] == "forced assertion failure"
+
+
+def test_playwright_bridge_driver_marks_dependency_missing_when_unavailable(
+    monkeypatch,
+) -> None:
+    step = ResolvedStep(task="step-1", source=Path("demo.yaml"))
+    context = ExecutionContext(case_name="demo", run_id="run-004")
+    driver = PlaywrightBridgeDriver()
+    monkeypatch.setattr(driver, "_is_playwright_available", lambda: False)
+
+    result = driver.execute_step(step, context)
+
+    assert result.success is False
+    assert "not installed" in result.message
+    assert result.artifacts["integration"] == "dependency-missing"
+
+
+def test_playwright_bridge_driver_reports_entrypoint_ready_when_dependency_present(
+    monkeypatch,
+) -> None:
+    step = ResolvedStep(task="step-1", source=Path("demo.yaml"))
+    context = ExecutionContext(case_name="demo", run_id="run-005")
+    driver = PlaywrightBridgeDriver()
+    monkeypatch.setattr(driver, "_is_playwright_available", lambda: True)
+
+    result = driver.execute_step(step, context)
+
+    assert result.success is False
+    assert "bridge is wired" in result.message
+    assert result.artifacts["integration"] == "entrypoint-ready"

@@ -13,6 +13,7 @@ from aut.runner import (
     DryRunDriver,
     ExecutionContext,
     ExecutionEngine,
+    PlaywrightBridgeDriver,
     discover_case_files,
     run_cases_with_pytest,
 )
@@ -43,6 +44,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--run",
         action="store_true",
         help="Execute steps by dry-run driver and persist replay record",
+    )
+    parser.add_argument(
+        "--driver",
+        choices=["dry-run", "playwright"],
+        default="dry-run",
+        help="Driver backend for --run mode, defaults to dry-run",
     )
     parser.add_argument(
         "--replay-dir",
@@ -81,6 +88,14 @@ def parse_vars(raw_vars: list[str]) -> dict[str, str]:
         key, value = raw_var.split("=", 1)
         variables[key] = value
     return variables
+
+
+def build_driver(name: str):
+    if name == "dry-run":
+        return DryRunDriver()
+    if name == "playwright":
+        return PlaywrightBridgeDriver()
+    raise ValueError(f"Unsupported driver: {name}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -160,19 +175,20 @@ def main(argv: list[str] | None = None) -> int:
             run_id=run_id,
             variables=variables,
         )
-        engine = ExecutionEngine(DryRunDriver())
+        driver = build_driver(args.driver)
+        engine = ExecutionEngine(driver)
         results = engine.run_case(resolved_case, context)
         replay_record = build_replay_record(
             case=resolved_case,
             context=context,
             results=results,
-            driver="dry-run",
+            driver=args.driver,
         )
         replay_file = ReplayStore(args.replay_dir).save(replay_record)
         allure_preview = map_replay_record_to_allure(replay_record)
         payload["execution"] = {
             "run_id": run_id,
-            "driver": "dry-run",
+            "driver": args.driver,
             "step_count": len(results),
             "success_count": sum(1 for item in results if item.success),
             "failed": any(not item.success for item in results),

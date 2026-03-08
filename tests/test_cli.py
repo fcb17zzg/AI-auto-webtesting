@@ -109,6 +109,54 @@ def test_cli_run_marks_failed_when_assertion_failed(tmp_path: Path) -> None:
     assert replay_payload["steps"][0]["artifacts"]["assertions"][0]["passed"] is False
 
 
+def test_cli_run_with_playwright_driver_marks_case_failed_when_dependency_missing(
+    tmp_path: Path,
+) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    replay_dir = tmp_path / "replays"
+
+    command = [
+        sys.executable,
+        "-m",
+        "aut.runner.cli",
+        "--case",
+        "product/create_vpc.yaml",
+        "--case-root",
+        str(project_root / "cases"),
+        "--replay-dir",
+        str(replay_dir),
+        "--run",
+        "--driver",
+        "playwright",
+        "--var",
+        "ASCM_URL=http://example.com",
+        "--var",
+        "USERNAME=tester",
+        "--var",
+        "PASSWORD=secret",
+        "--var",
+        "DEFAULT_ORG_ID=org-1",
+        "--var",
+        "VPC_NAME_UNIQUE=vpc-001",
+    ]
+
+    completed = subprocess.run(
+        command,
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    payload = json.loads(completed.stdout)
+
+    assert payload["execution"]["driver"] == "playwright"
+    assert payload["execution"]["failed"] is True
+
+    replay_file = Path(payload["execution"]["replay_file"])
+    replay_payload = json.loads(replay_file.read_text(encoding="utf-8"))
+    assert replay_payload["driver"] == "playwright"
+
+
 def test_cli_requires_case_when_not_run_pytest() -> None:
     with pytest.raises(SystemExit):
         cli.main([])
