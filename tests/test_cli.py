@@ -335,6 +335,97 @@ def test_cli_run_pytest_mode_writes_allure_results_batch(
     assert Path(batch["files"][0]["container"]).exists()
 
 
+def test_cli_run_stability_mode_returns_zero_when_gate_passed(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    selected_case = project_root / "cases" / "product" / "create_vpc.yaml"
+
+    monkeypatch.setattr(cli, "discover_case_files", lambda **_: [selected_case])
+
+    run_states = iter([0, 0, 1, 0, 0])
+
+    def fake_run_cases_with_pytest(**_: object) -> subprocess.CompletedProcess[str]:
+        code = next(run_states)
+        return subprocess.CompletedProcess(["pytest"], code, stdout=f"run-{code}", stderr="")
+
+    monkeypatch.setattr(cli, "run_cases_with_pytest", fake_run_cases_with_pytest)
+
+    exit_code = cli.main(
+        [
+            "--run-stability",
+            "--case-root",
+            str(project_root / "cases"),
+            "--replay-dir",
+            str(tmp_path / "replays"),
+            "--stability-runs",
+            "5",
+            "--stability-min-consecutive-pass",
+            "2",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["scheduler"] == "pytest-stability"
+    assert payload["summary"]["passCount"] == 4
+    assert payload["summary"]["maxConsecutivePass"] == 2
+    assert payload["gate"]["passed"] is True
+
+
+def test_cli_run_stability_mode_returns_non_zero_when_gate_failed(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    selected_case = project_root / "cases" / "product" / "create_vpc.yaml"
+
+    monkeypatch.setattr(cli, "discover_case_files", lambda **_: [selected_case])
+
+    run_states = iter([0, 1, 0])
+
+    def fake_run_cases_with_pytest(**_: object) -> subprocess.CompletedProcess[str]:
+        code = next(run_states)
+        return subprocess.CompletedProcess(["pytest"], code, stdout="", stderr="")
+
+    monkeypatch.setattr(cli, "run_cases_with_pytest", fake_run_cases_with_pytest)
+
+    exit_code = cli.main(
+        [
+            "--run-stability",
+            "--case-root",
+            str(project_root / "cases"),
+            "--replay-dir",
+            str(tmp_path / "replays"),
+            "--stability-runs",
+            "3",
+            "--stability-min-consecutive-pass",
+            "2",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 1
+    assert payload["summary"]["maxConsecutivePass"] == 1
+    assert payload["gate"]["passed"] is False
+
+
+def test_cli_run_stability_rejects_invalid_threshold() -> None:
+    with pytest.raises(SystemExit):
+        cli.main(
+            [
+                "--run-stability",
+                "--stability-runs",
+                "3",
+                "--stability-min-consecutive-pass",
+                "4",
+            ]
+        )
+
+
 def test_cli_run_with_playwright_driver_uses_playwright_assertion_executor(
     monkeypatch,
     tmp_path: Path,

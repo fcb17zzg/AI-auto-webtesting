@@ -37,6 +37,13 @@ def _non_negative_int(raw_value: str) -> int:
     return value
 
 
+def _positive_int(raw_value: str) -> int:
+    value = int(raw_value)
+    if value <= 0:
+        raise argparse.ArgumentTypeError("must be > 0")
+    return value
+
+
 def _collect_new_replay_files(replay_dir: Path, existing: set[Path]) -> list[Path]:
     if not replay_dir.exists():
         return []
@@ -113,6 +120,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run selected YAML cases through pytest scheduler entry",
     )
     parser.add_argument(
+        "--run-stability",
+        action="store_true",
+        help="Run selected YAML cases repeatedly through pytest and evaluate stability gate",
+    )
+    parser.add_argument(
+        "--stability-runs",
+        type=_positive_int,
+        default=10,
+        help="Total repeated runs for --run-stability, defaults to 10",
+    )
+    parser.add_argument(
+        "--stability-min-consecutive-pass",
+        type=_positive_int,
+        default=10,
+        help="Consecutive pass threshold for --run-stability gate, defaults to 10",
+    )
+    parser.add_argument(
         "--case-glob",
         default="**/*.yaml",
         help="Glob pattern for selecting cases in case-root, defaults to **/*.yaml",
@@ -153,8 +177,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    if args.run and args.run_pytest:
-        parser.error("--run and --run-pytest cannot be used together")
+    selected_modes = [args.run, args.run_pytest, args.run_stability]
+    if sum(1 for mode in selected_modes if mode) > 1:
+        parser.error("--run, --run-pytest and --run-stability are mutually exclusive")
 
     if args.enable_browser_use and (not args.run or args.driver != "playwright"):
         parser.error("--enable-browser-use requires --run --driver playwright")
@@ -167,7 +192,10 @@ def main(argv: list[str] | None = None) -> int:
             "--browser-use-plan-retry/--browser-use-plan-fallback require --enable-browser-use"
         )
 
-    if not args.run_pytest and not args.case:
+    if args.run_stability and args.stability_min_consecutive_pass > args.stability_runs:
+        parser.error("--stability-min-consecutive-pass cannot be greater than --stability-runs")
+
+    if not args.run_pytest and not args.run_stability and not args.case:
         parser.error("--case is required unless --run-pytest is used")
 
     variables = parse_vars(args.var)
@@ -228,6 +256,74 @@ def main(argv: list[str] | None = None) -> int:
 
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return completed.returncode
+
+    if args.run_stability:
+        selected_cases = discover_case_files(
+            case_root=args.case_root,
+            case_glob=args.case_glob,
+            case_filter=args.case_filter,
+        )
+        if not selected_cases:
+            raise ValueError("No cases matched current selection")
+
+        run_results: list[dict[str, object]] = []
+        pass_count = 0
+        fail_count = 0
+        consecutive_pass = 0
+        max_consecutive_pass = 0
+
+        for run_index in range(1, args.stability_runs + 1):
+            completed = run_cases_with_pytest(
+                case_root=args.case_root,
+                replay_dir=args.replay_dir,
+                case_glob=args.case_glob,
+                case_filter=args.case_filter,
+                pytest_args=args.pytest_arg,
+            )
+            passed = completed.returncode == 0
+            if passed:
+                pass_count += 1
+                consecutive_pass += 1
+                max_consecutive_pass = max(max_consecutive_pass, consecutive_pass)
+            else:
+                fail_count += 1
+                consecutive_pass = 0
+
+            run_results.append(
+                {
+                    "index": run_index,
+                    "exit_code": completed.returncode,
+                    "passed": passed,
+                    "stdout": completed.stdout,
+                    "stderr": completed.stderr,
+                }
+            )
+
+        pass_rate = pass_count / args.stability_runs
+        gate_passed = max_consecutive_pass >= args.stability_min_consecutive_pass
+        payload = {
+            "scheduler": "pytest-stability",
+            "case_root": str(Path(args.case_root).resolve()),
+            "selected_cases": [
+                str(path.relative_to(Path(args.case_root).resolve())) for path in selected_cases
+            ],
+            "runs": args.stability_runs,
+            "results": run_results,
+            "summary": {
+                "passCount": pass_count,
+                "failCount": fail_count,
+                "passRate": pass_rate,
+                "maxConsecutivePass": max_consecutive_pass,
+            },
+            "gate": {
+                "type": "min-consecutive-pass",
+                "minConsecutivePass": args.stability_min_consecutive_pass,
+                "passed": gate_passed,
+            },
+        }
+
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0 if gate_passed else 1
 
     case_parser = CaseParser(args.case_root)
     resolved_case = case_parser.parse(args.case, variables)

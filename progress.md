@@ -6,6 +6,7 @@
 - 阶段：M2 已完成（断言系统最小接口），M3 已完成首版（pytest/allure 报告链路）
 - M4-1 已完成：Allure 映射新增 `steps[*].executionTrace` 与 `attachmentRefs` 关联输出
 - M4-2 已完成：browser-use 规划失败支持重试与可控回退策略（CLI 开关 + 驱动执行策略）
+- M4-3 进行中：已落地稳定性回归门禁模式（`--run-stability`，支持连续通过阈值判定）
 
 ## 已完成
 
@@ -90,6 +91,8 @@
 - 完成 M4-2：新增 CLI 开关 `--browser-use-plan-retry`、`--browser-use-plan-fallback`，支持规划失败重试与回退策略控制
 - Playwright 驱动新增规划重试执行与回退到 task mapping 分支，补充可观测字段（`retryConfigured/attempts/fallbackPolicy/fallbackApplied/planErrors`）
 - 新增执行引擎与 CLI 回归测试覆盖：重试成功、回退生效、参数注入与参数约束
+- M4-3 首项完成：CLI 新增 `--run-stability` 稳定性回归模式，支持 `--stability-runs` 与 `--stability-min-consecutive-pass` 门禁
+- 稳定性输出新增汇总口径：`passCount/failCount/passRate/maxConsecutivePass` + `gate.passed`
 
 ## 进行中
 
@@ -97,9 +100,9 @@
 
 ## 下一步
 
-1. 建立 M4 稳定性回归脚本与门禁口径（关键样例最少连续 10 次回归）
-2. 对接模型驱动规划器的最小桩实现（替换 passthrough 适配层）
-3. 增加 planner 失败分类统计与趋势输出（为门禁提供量化指标）
+1. 对接模型驱动规划器的最小桩实现（替换 passthrough 适配层）
+2. 增加 planner 失败分类统计与趋势输出（为门禁提供量化指标）
+3. 将 `--run-stability` 纳入 CI/夜间任务并固化告警阈值
 
 ## 风险
 

@@ -107,6 +107,25 @@ python -m aut.runner.cli --run-pytest --case-root cases --case-filter vpc --repl
 - `--pytest-arg`：透传 pytest 参数（可重复）
 - `--allure-results-dir`：在调度完成后将新生成 replay 批量转换为 Allure `result/container/attachment` 文件
 
+## 稳定性回归门禁（M4-3）
+
+可通过 `--run-stability` 对关键样例执行重复回归并计算连续通过门禁：
+
+```bash
+python -m aut.runner.cli --run-stability --case-root cases --case-filter playwright_e2e_demo --replay-dir .aut/replays --stability-runs 10 --stability-min-consecutive-pass 10
+```
+
+可选参数：
+
+- `--stability-runs`：重复执行总次数（默认 `10`）
+- `--stability-min-consecutive-pass`：连续通过门槛（默认 `10`，需小于等于 `--stability-runs`）
+
+输出包含：
+
+- `summary.passCount/failCount/passRate`
+- `summary.maxConsecutivePass`
+- `gate.passed`（门禁是否通过）
+
 示例（Playwright 端到端样例 + Allure 附件落盘）：
 
 ```bash
