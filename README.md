@@ -128,6 +128,24 @@ python -m aut.runner.cli --run-stability --case-root cases --case-filter playwri
 - `plannerFailureTrend`（按 run index 输出 planner 失败类别趋势）
 - `gate.passed`（门禁是否通过）
 
+CI/夜间任务已纳入稳定性回归：
+
+- 工作流：`.github/workflows/stability-nightly.yml`
+- 触发方式：每日夜间（UTC `17:00`）+ 手动 `workflow_dispatch`
+- 默认阈值：
+  - `STABILITY_RUNS=10`
+  - `STABILITY_MIN_CONSECUTIVE_PASS=10`
+  - `STABILITY_MIN_PASS_RATE=0.95`
+  - `STABILITY_MAX_PLANNER_FAILURES=0`
+
+夜间任务会输出并归档 `stability-report.json`，并在以下任一条件触发时失败告警：
+
+- CLI 门禁失败（`--run-stability` 非 0 退出）
+- `gate.passed=false`
+- `summary.maxConsecutivePass < STABILITY_MIN_CONSECUTIVE_PASS`
+- `summary.passRate < STABILITY_MIN_PASS_RATE`
+- `summary.plannerFailureStats.total > STABILITY_MAX_PLANNER_FAILURES`
+
 示例（Playwright 端到端样例 + Allure 附件落盘）：
 
 ```bash

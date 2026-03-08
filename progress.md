@@ -9,6 +9,7 @@
 - M4-3 进行中：已落地稳定性回归门禁模式（`--run-stability`，支持连续通过阈值判定）
 - M4-3 进行中：已接入模型驱动规划器最小桩（`model-stub`，`stub-rule-v1`）替换 passthrough 适配层
 - M4-3 进行中：稳定性回归新增 planner 失败分类统计与趋势输出（按 run index 聚合）
+- M4-3 进行中：`--run-stability` 已纳入 CI 夜间任务并固化告警阈值（连续通过/通过率/planner 失败数）
 
 ## 已完成
 
@@ -97,6 +98,8 @@
 - 稳定性输出新增汇总口径：`passCount/failCount/passRate/maxConsecutivePass` + `gate.passed`
 - M4-3 第二项完成：browser-use adapter 工厂默认注入 `model-stub` 规划器，规划元数据新增 `planner/actions` 字段
 - M4-3 第三项完成：`--run-stability` 输出新增 `plannerFailureStats` 与 `plannerFailureTrend`，支持按类别统计与趋势跟踪
+- M4-3 第四项完成：新增 CI 夜间稳定性回归工作流（`.github/workflows/stability-nightly.yml`），默认执行 `--run-stability` 并归档 `stability-report.json`
+- 固化夜间告警阈值：`STABILITY_RUNS=10`、`STABILITY_MIN_CONSECUTIVE_PASS=10`、`STABILITY_MIN_PASS_RATE=0.95`、`STABILITY_MAX_PLANNER_FAILURES=0`
 
 ## 进行中
 
@@ -104,14 +107,13 @@
 
 ## 下一步
 
-1. 将 `--run-stability` 纳入 CI/夜间任务并固化告警阈值
-2. 增补 model-stub 到真实模型规划器的切换开关与接口契约文档
-3. 为 plannerFailure 分类补充 case 级维度（定位高波动用例）
+1. 增补 model-stub 到真实模型规划器的切换开关与接口契约文档
+2. 为 plannerFailure 分类补充 case 级维度（定位高波动用例）
 
 ## 风险
 
 - browser-use 最小 adapter 已切换为 model-stub 策略，但尚未接入真实模型推理链路
-- M4 报告聚合与重试回退策略已落地，但稳定性门禁尚未实现，复杂场景波动风险仍在
+- M4 报告聚合、重试回退与稳定性门禁已落地并接入夜间 CI，但复杂场景波动风险仍需持续观测
 - 模型与 browser-use 适配还未开始，后续可能影响接口设计
 
 ## 决策记录

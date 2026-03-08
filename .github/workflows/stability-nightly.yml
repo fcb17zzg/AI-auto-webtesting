@@ -1,0 +1,147 @@
+name: Stability Nightly
+
+on:
+  schedule:
+    - cron: "0 17 * * *"
+  workflow_dispatch:
+    inputs:
+      case_filter:
+        description: "Optional case filter substring"
+        required: false
+        default: "playwright_e2e_demo"
+      stability_runs:
+        description: "Total stability runs"
+        required: false
+        default: "10"
+      min_consecutive_pass:
+        description: "Gate threshold for min consecutive pass"
+        required: false
+        default: "10"
+      min_pass_rate:
+        description: "Alert threshold for summary.passRate"
+        required: false
+        default: "0.95"
+      max_planner_failures:
+        description: "Alert threshold for summary.plannerFailureStats.total"
+        required: false
+        default: "0"
+
+jobs:
+  run-stability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CASE_FILTER: ${{ inputs.case_filter || 'playwright_e2e_demo' }}
+      STABILITY_RUNS: ${{ inputs.stability_runs || '10' }}
+      STABILITY_MIN_CONSECUTIVE_PASS: ${{ inputs.min_consecutive_pass || '10' }}
+      STABILITY_MIN_PASS_RATE: ${{ inputs.min_pass_rate || '0.95' }}
+      STABILITY_MAX_PLANNER_FAILURES: ${{ inputs.max_planner_failures || '0' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Run stability regression
+        id: stability
+        shell: bash
+        run: |
+          set +e
+          python -m aut.runner.cli \
+            --run-stability \
+            --case-root cases \
+            --case-filter "${CASE_FILTER}" \
+            --replay-dir .aut/replays \
+            --stability-runs "${STABILITY_RUNS}" \
+            --stability-min-consecutive-pass "${STABILITY_MIN_CONSECUTIVE_PASS}" \
+            > stability-report.json
+          cli_exit_code=$?
+          set -e
+          echo "cli_exit_code=${cli_exit_code}" >> "${GITHUB_OUTPUT}"
+
+      - name: Evaluate alert thresholds
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report_path = Path("stability-report.json")
+          if not report_path.exists():
+              print("::error::stability-report.json was not generated")
+              raise SystemExit(1)
+
+          payload = json.loads(report_path.read_text(encoding="utf-8"))
+          summary = payload.get("summary", {})
+          gate = payload.get("gate", {})
+          planner_stats = summary.get("plannerFailureStats", {})
+
+          cli_exit_code = int(os.environ.get("CLI_EXIT_CODE", "1"))
+          min_pass_rate = float(os.environ.get("STABILITY_MIN_PASS_RATE", "0.95"))
+          max_planner_failures = int(os.environ.get("STABILITY_MAX_PLANNER_FAILURES", "0"))
+          expected_min_consecutive = int(os.environ.get("STABILITY_MIN_CONSECUTIVE_PASS", "10"))
+
+          pass_rate = float(summary.get("passRate", 0.0))
+          max_consecutive = int(summary.get("maxConsecutivePass", 0))
+          planner_failure_total = int(planner_stats.get("total", 0))
+          gate_passed = bool(gate.get("passed", False))
+
+          failures = []
+          if cli_exit_code != 0:
+              failures.append(f"cli gate failed (exit code={cli_exit_code})")
+          if not gate_passed:
+              failures.append("payload gate.passed is false")
+          if max_consecutive < expected_min_consecutive:
+              failures.append(
+                  f"maxConsecutivePass {max_consecutive} < required {expected_min_consecutive}"
+              )
+          if pass_rate < min_pass_rate:
+              failures.append(f"passRate {pass_rate:.2%} < threshold {min_pass_rate:.2%}")
+          if planner_failure_total > max_planner_failures:
+              failures.append(
+                  "plannerFailureStats.total "
+                  f"{planner_failure_total} > threshold {max_planner_failures}"
+              )
+
+          print(
+              "Stability summary:",
+              json.dumps(
+                  {
+                      "passRate": pass_rate,
+                      "maxConsecutivePass": max_consecutive,
+                      "plannerFailureTotal": planner_failure_total,
+                      "gatePassed": gate_passed,
+                      "cliExitCode": cli_exit_code,
+                  },
+                  ensure_ascii=False,
+              ),
+          )
+
+          if failures:
+              for item in failures:
+                  print(f"::error::{item}")
+              raise SystemExit(1)
+
+          print("Alert thresholds satisfied.")
+          PY
+        env:
+          CLI_EXIT_CODE: ${{ steps.stability.outputs.cli_exit_code }}
+
+      - name: Upload stability report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stability-report
+          path: stability-report.json
+          if-no-files-found: error
