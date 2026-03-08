@@ -85,20 +85,23 @@
 - 新增真实 browser-use adapter 最小实现：CLI `--enable-browser-use` + 依赖探测（`available/degraded/disabled`）
 - 依赖缺失时自动降级到 task mapping，并在上下文注入 `browser_use.status` 诊断信息
 - 新增 adapter 单测与 CLI 集成测试（开关注入、降级路径、参数约束）
+- 完成 M4 里程碑拆分与验收标准落地：明确 `M4-1 可观测报告`、`M4-2 规划稳定性`、`M4-3 端到端可靠性` 三阶段目标
+- 为 M4 增加可量化验收口径：报告字段完整性、失败重试回退行为、稳定性回归基线（通过率与波动阈值）
 
 ## 进行中
 
-- 梳理下一阶段（M4）目标与优先级
+- 执行 M4-1：browser-use 多动作在报告侧的可视化聚合（execution.actions 与附件关联）
 
 ## 下一步
 
-1. 规划 M4 里程碑与验收标准（复杂任务稳定性、可观测性覆盖、报告聚合）
-2. 梳理 browser-use 多动作规划在报告侧的可视化展示（execution.actions 与步骤附件关联）
-3. 增加 browser-use 规划失败的重试/回退策略开关（避免单次规划波动导致用例失败）
+1. 梳理 browser-use 多动作规划在报告侧的可视化展示（execution.actions 与步骤附件关联）
+2. 增加 browser-use 规划失败的重试/回退策略开关（避免单次规划波动导致用例失败）
+3. 建立 M4 稳定性回归脚本与门禁口径（关键样例最少连续 10 次回归）
 
 ## 风险
 
 - browser-use 最小 adapter 已接入，但当前为 passthrough 策略，尚未接入模型驱动规划能力
+- M4 已定义验收口径，但报告聚合与重试策略尚未实现，短期内复杂场景波动风险仍在
 - 模型与 browser-use 适配还未开始，后续可能影响接口设计
 
 ## 决策记录
