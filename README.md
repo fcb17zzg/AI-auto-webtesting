@@ -161,7 +161,7 @@ browser-use 规划动作白名单（当前版本）：
 
 当启用 `--enable-browser-use` 时，CLI 会进行依赖探测：
 
-- 依赖可用：注入最小 `passthrough` adapter，驱动优先尝试 browser-use 规划
+- 依赖可用：注入最小 `model-stub` 规划器（`stub-rule-v1`），驱动优先尝试 browser-use 规划
 - 依赖缺失：写入 `browser_use.status` 降级状态并回退到 task mapping 主链路
 
 当 `ExecutionContext.variables["browser_use.adapter"]` 提供规划器时，驱动会优先尝试执行 browser-use 规划；若规划动作不在白名单内，将返回 `browser-use-plan-failed`，并回传失败上下文用于排障。

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from aut.runner.browser_use_adapter import (
     BrowserUsePlan,
-    BrowserUsePassthroughAdapter,
+    BrowserUseModelStubAdapter,
     create_browser_use_adapter,
 )
 from aut.runner.contracts import ExecutionContext
@@ -30,8 +30,8 @@ def test_create_browser_use_adapter_returns_degraded_when_dependency_missing(mon
     assert status["fallback"] == "task-mapping"
 
 
-def test_passthrough_adapter_maps_action_to_browser_use_plan() -> None:
-    adapter = BrowserUsePassthroughAdapter()
+def test_model_stub_adapter_maps_action_to_browser_use_plan() -> None:
+    adapter = BrowserUseModelStubAdapter()
     context = ExecutionContext(case_name="demo", run_id="run-001")
 
     plan = adapter.plan(
@@ -48,9 +48,24 @@ def test_passthrough_adapter_maps_action_to_browser_use_plan() -> None:
     assert plan.action == "click"
     assert plan.target == "role=button"
     assert plan.value == "登录"
-    assert plan.metadata["source"] == "browser-use-passthrough"
+    assert plan.metadata["source"] == "browser-use-model-stub"
     assert plan.metadata["task"] == "点击“登录”按钮"
-    assert plan.metadata["options"]["exact"] is True
+    assert plan.metadata["planner"]["name"] == "stub-rule-v1"
+    assert plan.metadata["actions"][0]["options"]["exact"] is True
+
+
+def test_create_browser_use_adapter_returns_model_stub_when_dependency_available(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr("aut.runner.browser_use_adapter.find_spec", lambda _: object())
+
+    adapter, status = create_browser_use_adapter(True)
+
+    assert isinstance(adapter, BrowserUseModelStubAdapter)
+    assert status["enabled"] is True
+    assert status["available"] is True
+    assert status["mode"] == "model-stub"
+    assert status["planner"] == "stub-rule-v1"
 
 
 def test_browser_use_plan_to_dict_contains_all_fields() -> None:

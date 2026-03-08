@@ -561,7 +561,7 @@ def test_cli_run_injects_browser_use_adapter_when_enabled(
             {
                 "enabled": bool(enabled),
                 "available": bool(enabled),
-                "mode": "passthrough" if enabled else "disabled",
+                "mode": "model-stub" if enabled else "disabled",
                 "fallback": "none" if enabled else "task-mapping",
             },
         ),
@@ -595,7 +595,7 @@ def test_cli_run_injects_browser_use_adapter_when_enabled(
     _ = capsys.readouterr()
     assert exit_code == 0
     assert "browser_use.adapter" in captured_variables
-    assert captured_variables["browser_use.status"]["mode"] == "passthrough"
+    assert captured_variables["browser_use.status"]["mode"] == "model-stub"
     assert captured_variables["browser_use.planRetry"] == 0
     assert captured_variables["browser_use.planFallback"] == "fail-fast"
 
@@ -723,7 +723,7 @@ def test_cli_run_injects_browser_use_plan_strategy_when_configured(
             {
                 "enabled": bool(enabled),
                 "available": bool(enabled),
-                "mode": "passthrough" if enabled else "disabled",
+                "mode": "model-stub" if enabled else "disabled",
                 "fallback": "none" if enabled else "task-mapping",
             },
         ),

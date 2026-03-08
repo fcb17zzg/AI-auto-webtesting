@@ -43,8 +43,19 @@ class BrowserUseAdapter(Protocol):
         """Build a browser-use plan from DSL task and mapped action."""
 
 
-class BrowserUsePassthroughAdapter:
-    """Minimal browser-use adapter that normalizes mapped action into BrowserUsePlan."""
+class BrowserUseModelStubAdapter:
+    """Model-driven planner stub that emits normalized browser-use plan payloads."""
+
+    def _normalize_action_payload(self, mapped_action: dict[str, Any]) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "action": str(mapped_action.get("action", "")).strip().lower(),
+            "target": str(mapped_action.get("target", "")),
+            "value": str(mapped_action.get("value", "")),
+        }
+        options = mapped_action.get("options")
+        if isinstance(options, dict) and options:
+            payload["options"] = options
+        return payload
 
     def plan(
         self,
@@ -54,19 +65,27 @@ class BrowserUsePassthroughAdapter:
         context: ExecutionContext,
     ) -> BrowserUsePlan:
         _ = context
+        normalized = self._normalize_action_payload(mapped_action)
         metadata: dict[str, Any] = {
             "task": task,
-            "source": "browser-use-passthrough",
+            "source": "browser-use-model-stub",
+            "planner": {
+                "provider": "local",
+                "name": "stub-rule-v1",
+                "kind": "model-stub",
+            },
+            "actions": [normalized],
         }
-        options = mapped_action.get("options")
-        if isinstance(options, dict) and options:
-            metadata["options"] = options
         return BrowserUsePlan(
-            action=str(mapped_action.get("action", "")).strip().lower(),
-            target=str(mapped_action.get("target", "")),
-            value=str(mapped_action.get("value", "")),
+            action=str(normalized.get("action", "")),
+            target=str(normalized.get("target", "")),
+            value=str(normalized.get("value", "")),
             metadata=metadata,
         )
+
+
+class BrowserUsePassthroughAdapter(BrowserUseModelStubAdapter):
+    """Backward-compatible alias for the historical adapter class name."""
 
 
 def detect_browser_use_dependency() -> tuple[bool, str]:
@@ -99,10 +118,11 @@ def create_browser_use_adapter(
             "fallback": "task-mapping",
         }
 
-    return BrowserUsePassthroughAdapter(), {
+    return BrowserUseModelStubAdapter(), {
         "enabled": True,
         "available": True,
-        "mode": "passthrough",
+        "mode": "model-stub",
         "reason": reason,
         "fallback": "none",
+        "planner": "stub-rule-v1",
     }
