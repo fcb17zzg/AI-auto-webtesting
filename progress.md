@@ -62,20 +62,23 @@
 - 新增 Playwright runtime 生命周期托管：`ExecutionEngine` 统一在结束阶段触发 driver `close(context)` 清理钩子
 - Playwright 驱动补充 runtime 资源释放：按 `page/context/browser/runtime` 顺序释放并聚合清理异常
 - 新增生命周期稳定性测试（引擎清理钩子、Playwright 资源释放/异常分支）；全量回归通过（`46 passed, 3 skipped`）
+- 新增 browser-use 规划到执行闭环策略：若存在 `BrowserUsePlan` 则优先映射为可执行动作（`goto/click/fill`），否则回退 task mapping
+- Playwright 驱动执行结果新增 `execution.source/action` 元数据，区分 `browser-use-plan` 与 `task-mapping`
+- 新增 browser-use 规划执行与不支持动作失败分支测试并通过（全量回归通过）
 
 ## 进行中
 
-- 评估 browser-use 规划结果到执行动作的闭环映射策略
+- 为 e2e 样例增加可选变量化参数与文档化运行说明
 
 ## 下一步
 
-1. 评估 browser-use 规划结果到执行动作的闭环映射策略
-2. 为 e2e 样例增加可选变量化参数与文档化运行说明
-3. 按业务 DSL 扩展 task mapping（如下拉选择、等待、文本断言）并补齐回归
+1. 为 e2e 样例增加可选变量化参数与文档化运行说明
+2. 按业务 DSL 扩展 task mapping（如下拉选择、等待、文本断言）并补齐回归
+3. 增补 browser-use 规划动作白名单与可观测性文档
 
 ## 风险
 
-- Playwright 生命周期已托管，但 browser-use 规划尚未接入执行闭环（目前仅产出规划产物）
+- browser-use 已接入执行闭环，但规划动作白名单仍较小（当前仅 `goto/click/fill`）
 - 模型与 browser-use 适配还未开始，后续可能影响接口设计
 
 ## 决策记录

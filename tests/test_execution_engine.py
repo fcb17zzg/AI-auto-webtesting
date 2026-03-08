@@ -336,17 +336,23 @@ def test_playwright_bridge_driver_includes_browser_use_plan_when_adapter_present
             return None
 
     class _FakePage:
+        def __init__(self):
+            self.last_url = ""
+
         def get_by_role(self, role, name, **kwargs):
             _ = role, name, kwargs
             return _FakeLocator()
+
+        def goto(self, url):
+            self.last_url = url
 
     class _Adapter:
         def plan(self, *, task, mapped_action, context):
             _ = context
             return BrowserUsePlan(
-                action=mapped_action["action"],
-                target=mapped_action["target"],
-                value=mapped_action["value"],
+                action="goto",
+                target="http://browser-use-plan.example",
+                value="",
                 metadata={"task": task},
             )
 
@@ -355,15 +361,19 @@ def test_playwright_bridge_driver_includes_browser_use_plan_when_adapter_present
     context.variables[BROWSER_USE_ADAPTER_KEY] = _Adapter()
 
     driver = PlaywrightBridgeDriver()
+    fake_page = _FakePage()
     monkeypatch.setattr(driver, "_is_playwright_available", lambda: True)
-    monkeypatch.setattr(driver, "_create_runtime_page", lambda _: _FakePage())
+    monkeypatch.setattr(driver, "_create_runtime_page", lambda _: fake_page)
 
     result = driver.execute_step(step, context)
 
     assert result.success is True
+    assert fake_page.last_url == "http://browser-use-plan.example"
+    assert result.artifacts["execution"]["source"] == "browser-use-plan"
+    assert result.artifacts["execution"]["action"]["action"] == "goto"
     assert result.artifacts["browserUse"]["enabled"] is True
     assert result.artifacts["browserUse"]["planned"] is True
-    assert result.artifacts["browserUse"]["plan"]["action"] == "click"
+    assert result.artifacts["browserUse"]["plan"]["action"] == "goto"
     assert result.artifacts["browserUse"]["plan"]["metadata"]["task"] == "点击“登录”按钮"
 
 
@@ -389,6 +399,28 @@ def test_playwright_bridge_driver_returns_failed_when_browser_use_plan_throws(
     assert result.artifacts["integration"] == "browser-use-plan-failed"
     assert result.artifacts["browserUse"]["enabled"] is True
     assert result.artifacts["browserUse"]["planned"] is False
+
+
+def test_playwright_bridge_driver_returns_failed_when_browser_use_plan_action_unsupported(
+    monkeypatch,
+) -> None:
+    class _Adapter:
+        def plan(self, *, task, mapped_action, context):
+            _ = task, mapped_action, context
+            return BrowserUsePlan(action="hover", target="#submit")
+
+    step = ResolvedStep(task="点击“登录”按钮", source=Path("demo.yaml"))
+    context = ExecutionContext(case_name="demo", run_id="run-010")
+    context.variables[BROWSER_USE_ADAPTER_KEY] = _Adapter()
+
+    driver = PlaywrightBridgeDriver()
+    monkeypatch.setattr(driver, "_is_playwright_available", lambda: True)
+
+    result = driver.execute_step(step, context)
+
+    assert result.success is False
+    assert "unsupported browser-use plan action" in result.message
+    assert result.artifacts["integration"] == "browser-use-plan-failed"
 
 
 def test_playwright_bridge_driver_close_releases_runtime_resources() -> None:

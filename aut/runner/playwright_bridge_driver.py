@@ -61,14 +61,18 @@ class PlaywrightBridgeDriver(Driver):
             "enabled": False,
             "planned": False,
             "plan": None,
+            "executionSource": "task-mapping",
         }
+        action_to_execute = mapped_action
         try:
             browser_use_plan = self._plan_with_browser_use(step.task, mapped_action, context)
             if browser_use_plan is not None:
+                action_to_execute = self._map_browser_use_plan_to_action(browser_use_plan)
                 browser_use_artifacts = {
                     "enabled": True,
                     "planned": True,
                     "plan": browser_use_plan.to_dict(),
+                    "executionSource": "browser-use-plan",
                 }
         except Exception as exc:
             return StepResult(
@@ -92,7 +96,7 @@ class PlaywrightBridgeDriver(Driver):
 
         try:
             page = self._ensure_runtime_page(context)
-            self._execute_mapped_action(page, mapped_action)
+            self._execute_mapped_action(page, action_to_execute)
         except Exception as exc:
             return StepResult(
                 task=step.task,
@@ -120,6 +124,14 @@ class PlaywrightBridgeDriver(Driver):
                     "supported": True,
                     "action": mapped_action,
                 },
+                "execution": {
+                    "source": browser_use_artifacts["executionSource"],
+                    "action": action_to_execute,
+                },
+                "execution": {
+                    "source": browser_use_artifacts["executionSource"],
+                    "action": action_to_execute,
+                },
                 "browserUse": browser_use_artifacts,
             },
         )
@@ -138,6 +150,21 @@ class PlaywrightBridgeDriver(Driver):
         if not isinstance(plan, BrowserUsePlan):
             raise TypeError("browser-use adapter must return BrowserUsePlan")
         return plan
+
+    def _map_browser_use_plan_to_action(self, plan: BrowserUsePlan) -> dict[str, Any]:
+        action = (plan.action or "").strip().lower()
+        if action not in {"goto", "click", "fill"}:
+            raise ValueError(f"unsupported browser-use plan action: {plan.action}")
+
+        mapped_action: dict[str, Any] = {
+            "action": action,
+            "target": plan.target,
+            "value": plan.value,
+        }
+        options = plan.metadata.get("options")
+        if isinstance(options, dict) and options:
+            mapped_action["options"] = options
+        return mapped_action
 
     def _ensure_runtime_page(self, context: ExecutionContext) -> Any:
         page = context.variables.get(PLAYWRIGHT_PAGE_KEY)
