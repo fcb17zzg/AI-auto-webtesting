@@ -82,6 +82,9 @@
 - Playwright 驱动新增步骤截图采集策略（按开关写入 replay 附件）；新增 CLI/执行引擎/驱动回归测试并通过（相关回归：`45 passed`）
 - 扩展 browser-use 规划动作白名单：支持 `select_option/wait/assert_text_visible`，与现有驱动执行能力对齐
 - 新增 browser-use `select_option` 规划动作执行测试，并同步白名单观测字段断言
+- 新增真实 browser-use adapter 最小实现：CLI `--enable-browser-use` + 依赖探测（`available/degraded/disabled`）
+- 依赖缺失时自动降级到 task mapping，并在上下文注入 `browser_use.status` 诊断信息
+- 新增 adapter 单测与 CLI 集成测试（开关注入、降级路径、参数约束）
 
 ## 进行中
 
@@ -89,13 +92,13 @@
 
 ## 下一步
 
-1. 引入真实 browser-use adapter 的最小实现（含依赖探测、降级与集成测试）
-2. 规划 M4 里程碑与验收标准（复杂任务稳定性、可观测性覆盖、报告聚合）
-3. 梳理 browser-use 多动作规划在报告侧的可视化展示（execution.actions 与步骤附件关联）
+1. 规划 M4 里程碑与验收标准（复杂任务稳定性、可观测性覆盖、报告聚合）
+2. 梳理 browser-use 多动作规划在报告侧的可视化展示（execution.actions 与步骤附件关联）
+3. 增加 browser-use 规划失败的重试/回退策略开关（避免单次规划波动导致用例失败）
 
 ## 风险
 
-- browser-use 已接入执行闭环，但真实 adapter 尚未接入，复杂规划质量与稳定性仍待验证
+- browser-use 最小 adapter 已接入，但当前为 passthrough 策略，尚未接入模型驱动规划能力
 - 模型与 browser-use 适配还未开始，后续可能影响接口设计
 
 ## 决策记录

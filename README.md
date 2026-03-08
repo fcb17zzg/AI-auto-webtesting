@@ -47,6 +47,7 @@ python -m aut.runner.cli --case cases/product/create_vpc.yaml --var ASCM_URL=htt
 - `--driver`：执行驱动选择，当前支持 `dry-run`（默认）与 `playwright`（真实动作执行）
 - `--capture-step-screenshot`：步骤截图采集策略（`never` / `on-failure` / `always`，默认 `never`）
 - `--capture-step-log`：开启步骤级日志观测字段（默认关闭）
+- `--enable-browser-use`：开启 browser-use 规划适配（仅 `--run --driver playwright` 生效）
 - `--allure-results-dir`：当启用 `--run` 时，额外落盘 Allure 实体文件（`*-result.json`、`*-container.json`、附件）
 
 示例（Playwright 真实动作执行）：
@@ -59,6 +60,12 @@ python -m aut.runner.cli --case cases/product/create_vpc.yaml --run --driver pla
 
 ```bash
 python -m aut.runner.cli --case cases/common/playwright_e2e_demo.yaml --run --driver playwright --capture-step-screenshot on-failure --capture-step-log --replay-dir .aut/replays --allure-results-dir .aut/allure-results
+```
+
+示例（启用 browser-use 适配；依赖缺失时自动降级到 task mapping）：
+
+```bash
+python -m aut.runner.cli --case cases/common/playwright_e2e_demo.yaml --run --driver playwright --enable-browser-use --replay-dir .aut/replays
 ```
 
 示例（dry-run + Allure 实体落盘）：
@@ -124,6 +131,11 @@ browser-use 规划动作白名单（当前版本）：
 - `select_option`
 - `wait`
 - `assert_text_visible`
+
+当启用 `--enable-browser-use` 时，CLI 会进行依赖探测：
+
+- 依赖可用：注入最小 `passthrough` adapter，驱动优先尝试 browser-use 规划
+- 依赖缺失：写入 `browser_use.status` 降级状态并回退到 task mapping 主链路
 
 当 `ExecutionContext.variables["browser_use.adapter"]` 提供规划器时，驱动会优先尝试执行 browser-use 规划；若规划动作不在白名单内，将返回 `browser-use-plan-failed`，并回传失败上下文用于排障。
 

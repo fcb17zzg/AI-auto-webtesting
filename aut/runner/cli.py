@@ -15,11 +15,14 @@ from aut.reporting import (
 )
 from aut.replay import ReplayStore, build_replay_record
 from aut.runner import (
+    BROWSER_USE_ADAPTER_KEY,
+    BROWSER_USE_STATUS_KEY,
     DryRunDriver,
     ExecutionContext,
     ExecutionEngine,
     PlaywrightAssertionExecutor,
     PlaywrightBridgeDriver,
+    create_browser_use_adapter,
     discover_case_files,
     run_cases_with_pytest,
 )
@@ -67,6 +70,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--capture-step-log",
         action="store_true",
         help="Enable step-level log capture metadata for --run mode",
+    )
+    parser.add_argument(
+        "--enable-browser-use",
+        action="store_true",
+        help="Enable browser-use adapter planning in --run mode (playwright only)",
     )
     parser.add_argument(
         "--replay-dir",
@@ -127,6 +135,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.run and args.run_pytest:
         parser.error("--run and --run-pytest cannot be used together")
 
+    if args.enable_browser_use and (not args.run or args.driver != "playwright"):
+        parser.error("--enable-browser-use requires --run --driver playwright")
+
     if not args.run_pytest and not args.case:
         parser.error("--case is required unless --run-pytest is used")
 
@@ -134,6 +145,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.run:
         variables["aut.capture.stepScreenshot"] = args.capture_step_screenshot
         variables["aut.capture.stepLog"] = args.capture_step_log
+        adapter, adapter_status = create_browser_use_adapter(args.enable_browser_use)
+        variables[BROWSER_USE_STATUS_KEY] = adapter_status
+        if adapter is not None:
+            variables[BROWSER_USE_ADAPTER_KEY] = adapter
 
     if args.run_pytest:
         replay_dir = Path(args.replay_dir).resolve()

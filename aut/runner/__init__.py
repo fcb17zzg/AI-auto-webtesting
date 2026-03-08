@@ -1,7 +1,15 @@
 """Runner package for AUT."""
 
 from .assertions import PLAYWRIGHT_PAGE_KEY, PlaceholderAssertionExecutor, PlaywrightAssertionExecutor
-from .browser_use_adapter import BROWSER_USE_ADAPTER_KEY, BrowserUseAdapter, BrowserUsePlan
+from .browser_use_adapter import (
+	BROWSER_USE_ADAPTER_KEY,
+	BROWSER_USE_STATUS_KEY,
+	BrowserUseAdapter,
+	BrowserUsePassthroughAdapter,
+	BrowserUsePlan,
+	create_browser_use_adapter,
+	detect_browser_use_dependency,
+)
 from .contracts import AssertionExecutor, AssertionResult, Driver, ExecutionContext, StepResult
 from .dry_run_driver import DryRunDriver
 from .engine import ExecutionEngine
@@ -19,8 +27,12 @@ __all__ = [
 	"PlaywrightAssertionExecutor",
 	"PLAYWRIGHT_PAGE_KEY",
 	"BROWSER_USE_ADAPTER_KEY",
+	"BROWSER_USE_STATUS_KEY",
 	"BrowserUseAdapter",
+	"BrowserUsePassthroughAdapter",
 	"BrowserUsePlan",
+	"create_browser_use_adapter",
+	"detect_browser_use_dependency",
 	"DryRunDriver",
 	"PlaywrightBridgeDriver",
 	"ExecutionEngine",

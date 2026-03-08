@@ -441,6 +441,151 @@ def test_cli_run_injects_step_capture_switches_into_context(
     assert captured_variables["aut.capture.stepLog"] is True
 
 
+def test_cli_run_injects_browser_use_adapter_when_enabled(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    captured_variables: dict[str, object] = {}
+
+    class _FakeAdapter:
+        pass
+
+    class _FakeEngine:
+        def __init__(self, driver, assertion_executor=None):
+            _ = driver, assertion_executor
+
+        def run_case(self, case, context):
+            _ = case
+            captured_variables.update(context.variables)
+            return [StepResult(task="demo", success=True, message="ok")]
+
+    monkeypatch.setattr(cli, "ExecutionEngine", _FakeEngine)
+    monkeypatch.setattr(
+        cli,
+        "create_browser_use_adapter",
+        lambda enabled: (
+            _FakeAdapter() if enabled else None,
+            {
+                "enabled": bool(enabled),
+                "available": bool(enabled),
+                "mode": "passthrough" if enabled else "disabled",
+                "fallback": "none" if enabled else "task-mapping",
+            },
+        ),
+    )
+
+    exit_code = cli.main(
+        [
+            "--case",
+            "product/create_vpc.yaml",
+            "--case-root",
+            str(project_root / "cases"),
+            "--replay-dir",
+            str(tmp_path / "replays"),
+            "--run",
+            "--driver",
+            "playwright",
+            "--enable-browser-use",
+            "--var",
+            "ASCM_URL=http://example.com",
+            "--var",
+            "USERNAME=tester",
+            "--var",
+            "PASSWORD=secret",
+            "--var",
+            "DEFAULT_ORG_ID=org-1",
+            "--var",
+            "VPC_NAME_UNIQUE=vpc-001",
+        ]
+    )
+
+    _ = capsys.readouterr()
+    assert exit_code == 0
+    assert "browser_use.adapter" in captured_variables
+    assert captured_variables["browser_use.status"]["mode"] == "passthrough"
+
+
+def test_cli_run_sets_browser_use_degraded_status_when_dependency_missing(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    captured_variables: dict[str, object] = {}
+
+    class _FakeEngine:
+        def __init__(self, driver, assertion_executor=None):
+            _ = driver, assertion_executor
+
+        def run_case(self, case, context):
+            _ = case
+            captured_variables.update(context.variables)
+            return [StepResult(task="demo", success=True, message="ok")]
+
+    monkeypatch.setattr(cli, "ExecutionEngine", _FakeEngine)
+    monkeypatch.setattr(
+        cli,
+        "create_browser_use_adapter",
+        lambda enabled: (
+            None,
+            {
+                "enabled": bool(enabled),
+                "available": False,
+                "mode": "degraded",
+                "reason": "dependency-missing",
+                "fallback": "task-mapping",
+            },
+        ),
+    )
+
+    exit_code = cli.main(
+        [
+            "--case",
+            "product/create_vpc.yaml",
+            "--case-root",
+            str(project_root / "cases"),
+            "--replay-dir",
+            str(tmp_path / "replays"),
+            "--run",
+            "--driver",
+            "playwright",
+            "--enable-browser-use",
+            "--var",
+            "ASCM_URL=http://example.com",
+            "--var",
+            "USERNAME=tester",
+            "--var",
+            "PASSWORD=secret",
+            "--var",
+            "DEFAULT_ORG_ID=org-1",
+            "--var",
+            "VPC_NAME_UNIQUE=vpc-001",
+        ]
+    )
+
+    _ = capsys.readouterr()
+    assert exit_code == 0
+    assert "browser_use.adapter" not in captured_variables
+    assert captured_variables["browser_use.status"]["mode"] == "degraded"
+    assert captured_variables["browser_use.status"]["fallback"] == "task-mapping"
+
+
+def test_cli_rejects_enable_browser_use_without_playwright_driver() -> None:
+    with pytest.raises(SystemExit):
+        cli.main(
+            [
+                "--case",
+                "product/create_vpc.yaml",
+                "--run",
+                "--driver",
+                "dry-run",
+                "--enable-browser-use",
+            ]
+        )
+
+
 def test_cli_playwright_e2e_sample_writes_png_attachment_and_allure_outputs(
     monkeypatch,
     tmp_path: Path,
