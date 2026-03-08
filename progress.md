@@ -80,6 +80,8 @@
 - 新增步骤级可观测性字段：`observability.stepIndex/startedAt/finishedAt/durationMs` 与 `capture` 配置快照
 - 新增可选观测开关：CLI `--capture-step-screenshot`（`never/on-failure/always`）与 `--capture-step-log`
 - Playwright 驱动新增步骤截图采集策略（按开关写入 replay 附件）；新增 CLI/执行引擎/驱动回归测试并通过（相关回归：`45 passed`）
+- 扩展 browser-use 规划动作白名单：支持 `select_option/wait/assert_text_visible`，与现有驱动执行能力对齐
+- 新增 browser-use `select_option` 规划动作执行测试，并同步白名单观测字段断言
 
 ## 进行中
 
@@ -87,13 +89,13 @@
 
 ## 下一步
 
-1. 扩展 browser-use 规划动作白名单（与现有 `select_option/wait/assert_text_visible` 执行能力对齐）
-2. 引入真实 browser-use adapter 的最小实现（含依赖探测、降级与集成测试）
-3. 规划 M4 里程碑与验收标准（复杂任务稳定性、可观测性覆盖、报告聚合）
+1. 引入真实 browser-use adapter 的最小实现（含依赖探测、降级与集成测试）
+2. 规划 M4 里程碑与验收标准（复杂任务稳定性、可观测性覆盖、报告聚合）
+3. 梳理 browser-use 多动作规划在报告侧的可视化展示（execution.actions 与步骤附件关联）
 
 ## 风险
 
-- browser-use 已接入执行闭环，但规划动作白名单仍较小（当前仅 `goto/click/fill`），复杂场景覆盖不足
+- browser-use 已接入执行闭环，但真实 adapter 尚未接入，复杂规划质量与稳定性仍待验证
 - 模型与 browser-use 适配还未开始，后续可能影响接口设计
 
 ## 决策记录

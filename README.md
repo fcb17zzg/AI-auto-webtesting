@@ -121,6 +121,9 @@ browser-use 规划动作白名单（当前版本）：
 - `goto`
 - `click`
 - `fill`
+- `select_option`
+- `wait`
+- `assert_text_visible`
 
 当 `ExecutionContext.variables["browser_use.adapter"]` 提供规划器时，驱动会优先尝试执行 browser-use 规划；若规划动作不在白名单内，将返回 `browser-use-plan-failed`，并回传失败上下文用于排障。
 

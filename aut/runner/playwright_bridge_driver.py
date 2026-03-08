@@ -13,7 +13,9 @@ from .browser_use_adapter import BROWSER_USE_ADAPTER_KEY, BrowserUsePlan
 from .contracts import Driver, ExecutionContext, StepResult
 from .playwright_task_mapper import PlaywrightTaskMapper
 
-BROWSER_USE_PLAN_ACTION_WHITELIST = frozenset({"goto", "click", "fill"})
+BROWSER_USE_PLAN_ACTION_WHITELIST = frozenset(
+    {"goto", "click", "fill", "select_option", "wait", "assert_text_visible"}
+)
 STEP_SCREENSHOT_POLICY_KEY = "aut.capture.stepScreenshot"
 
 

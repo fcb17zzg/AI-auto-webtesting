@@ -540,7 +540,14 @@ def test_playwright_bridge_driver_includes_browser_use_plan_when_adapter_present
     assert result.artifacts["browserUse"]["planned"] is True
     assert result.artifacts["browserUse"]["plan"]["action"] == "goto"
     assert result.artifacts["browserUse"]["plan"]["metadata"]["task"] == "点击“登录”按钮"
-    assert sorted(result.artifacts["browserUse"]["whitelist"]) == ["click", "fill", "goto"]
+    assert sorted(result.artifacts["browserUse"]["whitelist"]) == [
+        "assert_text_visible",
+        "click",
+        "fill",
+        "goto",
+        "select_option",
+        "wait",
+    ]
     assert result.artifacts["browserUse"]["requestedAction"] == "goto"
     assert result.artifacts["browserUse"]["whitelistDecision"] == "allowed"
     assert result.artifacts["browserUse"]["plannedActionCount"] == 1
@@ -615,6 +622,54 @@ def test_playwright_bridge_driver_executes_browser_use_multi_action_plan(
     assert len(result.artifacts["execution"]["actions"]) == 2
     assert result.artifacts["execution"]["action"]["action"] == "click"
     assert result.artifacts["browserUse"]["plannedActionCount"] == 2
+
+
+def test_playwright_bridge_driver_executes_browser_use_select_option_plan(
+    monkeypatch,
+) -> None:
+    class _FakeLocator:
+        def __init__(self):
+            self.selected = ""
+
+        def select_option(self, value):
+            self.selected = value
+
+    class _FakePage:
+        def __init__(self):
+            self.last_label = ""
+            self.locator = _FakeLocator()
+
+        def get_by_label(self, label, exact=True):
+            _ = exact
+            self.last_label = label
+            return self.locator
+
+    class _Adapter:
+        def plan(self, *, task, mapped_action, context):
+            _ = task, mapped_action, context
+            return BrowserUsePlan(
+                action="select_option",
+                target="地域",
+                value="华东1（杭州）",
+            )
+
+    step = ResolvedStep(task="点击“登录”按钮", source=Path("demo.yaml"))
+    context = ExecutionContext(case_name="demo", run_id="run-008-select-plan")
+    context.variables[BROWSER_USE_ADAPTER_KEY] = _Adapter()
+
+    driver = PlaywrightBridgeDriver()
+    fake_page = _FakePage()
+    monkeypatch.setattr(driver, "_is_playwright_available", lambda: True)
+    monkeypatch.setattr(driver, "_create_runtime_page", lambda _: fake_page)
+
+    result = driver.execute_step(step, context)
+
+    assert result.success is True
+    assert result.artifacts["execution"]["source"] == "browser-use-plan"
+    assert result.artifacts["execution"]["action"]["action"] == "select_option"
+    assert result.artifacts["browserUse"]["requestedAction"] == "select_option"
+    assert fake_page.last_label == "地域"
+    assert fake_page.locator.selected == "华东1（杭州）"
 
 
 def test_playwright_bridge_driver_fails_when_browser_use_multi_action_contains_unsupported_action(
@@ -704,7 +759,14 @@ def test_playwright_bridge_driver_returns_failed_when_browser_use_plan_throws(
     assert result.artifacts["integration"] == "browser-use-plan-failed"
     assert result.artifacts["browserUse"]["enabled"] is True
     assert result.artifacts["browserUse"]["planned"] is False
-    assert sorted(result.artifacts["browserUse"]["whitelist"]) == ["click", "fill", "goto"]
+    assert sorted(result.artifacts["browserUse"]["whitelist"]) == [
+        "assert_text_visible",
+        "click",
+        "fill",
+        "goto",
+        "select_option",
+        "wait",
+    ]
     assert result.artifacts["browserUse"]["whitelistDecision"] == "rejected"
 
 
@@ -728,7 +790,14 @@ def test_playwright_bridge_driver_returns_failed_when_browser_use_plan_action_un
     assert result.success is False
     assert "unsupported browser-use plan action" in result.message
     assert result.artifacts["integration"] == "browser-use-plan-failed"
-    assert sorted(result.artifacts["browserUse"]["whitelist"]) == ["click", "fill", "goto"]
+    assert sorted(result.artifacts["browserUse"]["whitelist"]) == [
+        "assert_text_visible",
+        "click",
+        "fill",
+        "goto",
+        "select_option",
+        "wait",
+    ]
     assert result.artifacts["browserUse"]["whitelistDecision"] == "rejected"
 
 
