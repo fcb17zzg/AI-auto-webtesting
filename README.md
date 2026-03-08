@@ -44,10 +44,10 @@ python -m aut.runner.cli --case cases/product/create_vpc.yaml --var ASCM_URL=htt
 
 可选参数：
 
-- `--driver`：执行驱动选择，当前支持 `dry-run`（默认）与 `playwright`（桥接接入点评估）
+- `--driver`：执行驱动选择，当前支持 `dry-run`（默认）与 `playwright`（真实动作执行）
 - `--allure-results-dir`：当启用 `--run` 时，额外落盘 Allure 实体文件（`*-result.json`、`*-container.json`、附件）
 
-示例（Playwright 桥接接入点评估）：
+示例（Playwright 真实动作执行）：
 
 ```bash
 python -m aut.runner.cli --case cases/product/create_vpc.yaml --run --driver playwright --replay-dir .aut/replays --var ASCM_URL=http://example.com --var USERNAME=tester --var PASSWORD=secret --var DEFAULT_ORG_ID=org-1 --var VPC_NAME_UNIQUE=vpc-demo
@@ -84,9 +84,15 @@ python -m aut.runner.cli --run-pytest --case-root cases --case-filter vpc --repl
 - `--pytest-arg`：透传 pytest 参数（可重复）
 - `--allure-results-dir`：在调度完成后将新生成 replay 批量转换为 Allure `result/container/attachment` 文件
 
+示例（Playwright 端到端样例 + Allure 附件落盘）：
+
+```bash
+python -m aut.runner.cli --case cases/common/playwright_e2e_demo.yaml --run --driver playwright --replay-dir .aut/replays --allure-results-dir .aut/allure-results
+```
+
 ## 当前说明
 
-当前 `playwright` 驱动为桥接模式：用于验证依赖探测、任务映射策略与接入点连通性，尚未执行真实浏览器动作。默认 `dry-run` 仍用于稳定主链路。
+当前 `playwright` 驱动已接入真实动作执行链路：可在 runtime page 可用时执行 `goto/click/fill`，并将执行结果写入 replay 与报告链路。执行结束后会自动释放 runtime `page/context/browser` 资源。默认 `dry-run` 仍用于稳定主链路。
 
 当前 task mapping 首版支持：
 

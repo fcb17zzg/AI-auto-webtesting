@@ -71,3 +71,30 @@ def test_replay_file_json_shape(tmp_path: Path) -> None:
     assert payload["runId"] == "run-demo"
     assert payload["driver"] == "dry-run"
     assert isinstance(payload["steps"], list)
+
+
+def test_build_replay_record_serializes_non_json_variables(tmp_path: Path) -> None:
+    class _RuntimePage:
+        pass
+
+    case = ResolvedCase(
+        name="demo",
+        path=Path("demo.yaml"),
+        description="",
+        steps=[],
+    )
+    context = ExecutionContext(
+        case_name="demo",
+        run_id="run-runtime-vars",
+        variables={
+            "USERNAME": "tester",
+            "playwright.page": _RuntimePage(),
+        },
+    )
+
+    record = build_replay_record(case, context, [], driver="playwright")
+    saved_path = ReplayStore(tmp_path).save(record)
+    payload = json.loads(saved_path.read_text(encoding="utf-8"))
+
+    assert payload["variables"]["USERNAME"] == "tester"
+    assert isinstance(payload["variables"]["playwright.page"], str)

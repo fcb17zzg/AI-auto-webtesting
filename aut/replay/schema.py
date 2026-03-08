@@ -10,6 +10,16 @@ from aut.runner import ExecutionContext, StepResult
 SCHEMA_VERSION = "1.0"
 
 
+def _to_json_safe(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, dict):
+        return {str(key): _to_json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_to_json_safe(item) for item in value]
+    return repr(value)
+
+
 @dataclass(slots=True)
 class ReplayStepRecord:
     index: int
@@ -104,7 +114,7 @@ def build_replay_record(
         case_path=str(case.path),
         driver=driver,
         created_at=datetime.now(UTC).isoformat(),
-        variables=context.variables,
+        variables=_to_json_safe(context.variables),
         metadata=case.metadata,
         steps=step_records,
     )

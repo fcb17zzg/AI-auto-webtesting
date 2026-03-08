@@ -49,20 +49,33 @@
 - 执行引擎新增断言附件聚合：将 assertion artifacts 提升为 step artifacts，随 replay 一并落盘
 - Allure 实体落盘链路支持写出失败截图附件（png）与失败上下文（txt）
 - 新增断言附件与 Allure 落盘测试并通过（当前总计 38 条测试）
+- 将 task mapping 动作计划接入真实 Playwright 浏览器执行链路：支持在驱动内创建/复用 runtime page 并执行 `goto/click/fill`
+- Playwright 桥接驱动新增运行态执行结果：`runtime-executed` 与 `runtime-execution-failed`，保留依赖缺失与未支持任务兼容分支
+- 新增 Playwright 动作执行成功/失败单测并通过；全量回归通过（`37 passed, 2 skipped`）
+- 新增 browser-use 适配层接口草案：`BrowserUseAdapter` 协议、`BrowserUsePlan` 结构与上下文注入键（`browser_use.adapter`）
+- Playwright 驱动接入可选 browser-use 规划挂点：支持产出 `browserUse` 规划产物并在规划异常时返回 `browser-use-plan-failed`
+- 新增 browser-use 适配层与驱动集成验证测试并通过；全量回归通过（`40 passed, 2 skipped`）
+- 新增端到端演示用例 `cases/common/playwright_e2e_demo.yaml`，覆盖 Playwright 动作执行（goto/fill/click）与断言链路
+- 新增 CLI 端到端测试：覆盖真实浏览器执行风格、断言失败截图附件、Allure 结果文件落盘闭环
+- 修复 replay 序列化问题：`ExecutionContext.variables` 统一转为 JSON-safe，避免 runtime page/browser 对象导致落盘失败
+- 新增 replay 序列化回归测试并通过；全量回归通过（`42 passed, 3 skipped`）
+- 新增 Playwright runtime 生命周期托管：`ExecutionEngine` 统一在结束阶段触发 driver `close(context)` 清理钩子
+- Playwright 驱动补充 runtime 资源释放：按 `page/context/browser/runtime` 顺序释放并聚合清理异常
+- 新增生命周期稳定性测试（引擎清理钩子、Playwright 资源释放/异常分支）；全量回归通过（`46 passed, 3 skipped`）
 
 ## 进行中
 
-- 将 task mapping 动作计划接入真实 Playwright 浏览器执行链路
+- 评估 browser-use 规划结果到执行动作的闭环映射策略
 
 ## 下一步
 
-1. 将 task mapping 动作计划接入真实 Playwright 浏览器执行链路
-2. 规划 browser-use 适配层接口草案与验证路径
-3. 增补端到端样例（含真实浏览器执行、断言、附件、报告）
+1. 评估 browser-use 规划结果到执行动作的闭环映射策略
+2. 为 e2e 样例增加可选变量化参数与文档化运行说明
+3. 按业务 DSL 扩展 task mapping（如下拉选择、等待、文本断言）并补齐回归
 
 ## 风险
 
-- Playwright 断言执行已接入，但真实浏览器执行链路尚未打通，当前仍缺少运行态 page 注入来源
+- Playwright 生命周期已托管，但 browser-use 规划尚未接入执行闭环（目前仅产出规划产物）
 - 模型与 browser-use 适配还未开始，后续可能影响接口设计
 
 ## 决策记录
