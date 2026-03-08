@@ -27,6 +27,9 @@ class PlaywrightTaskMapper:
     _OPEN_PATTERN = re.compile(r'^打开\s+"(?P<url>.+)"$')
     _CLICK_PATTERN = re.compile(r'^点击“(?P<label>.+)”按钮$')
     _FILL_PATTERN = re.compile(r'^在“(?P<label>.+)”输入框输入“(?P<value>.*)”$')
+    _SELECT_PATTERN = re.compile(r'^在“(?P<label>.+)”下拉框选择“(?P<value>.*)”$')
+    _WAIT_PATTERN = re.compile(r"^等待\s+(?P<seconds>\d+(?:\.\d+)?)\s*秒$")
+    _ASSERT_TEXT_VISIBLE_PATTERN = re.compile(r'^断言“(?P<text>.+)”文本可见$')
 
     def map_task(self, task: str) -> PlaywrightAction:
         task = task.strip()
@@ -50,6 +53,31 @@ class PlaywrightTaskMapper:
                 action="fill",
                 target=fill_match.group("label"),
                 value=fill_match.group("value"),
+            )
+
+        select_match = self._SELECT_PATTERN.match(task)
+        if select_match:
+            return PlaywrightAction(
+                action="select_option",
+                target=select_match.group("label"),
+                value=select_match.group("value"),
+            )
+
+        wait_match = self._WAIT_PATTERN.match(task)
+        if wait_match:
+            seconds = float(wait_match.group("seconds"))
+            return PlaywrightAction(
+                action="wait",
+                value=str(seconds),
+                options={"seconds": seconds},
+            )
+
+        assert_text_match = self._ASSERT_TEXT_VISIBLE_PATTERN.match(task)
+        if assert_text_match:
+            return PlaywrightAction(
+                action="assert_text_visible",
+                value=assert_text_match.group("text"),
+                options={"exact": True},
             )
 
         raise ValueError(f"Unsupported playwright task pattern: {task}")

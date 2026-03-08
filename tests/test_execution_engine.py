@@ -290,7 +290,7 @@ def test_playwright_bridge_driver_reports_entrypoint_ready_when_dependency_prese
 def test_playwright_bridge_driver_returns_mapping_unsupported_for_unknown_task(
     monkeypatch,
 ) -> None:
-    step = ResolvedStep(task="等待 3 秒", source=Path("demo.yaml"))
+    step = ResolvedStep(task="上传 文件", source=Path("demo.yaml"))
     context = ExecutionContext(case_name="demo", run_id="run-006")
     driver = PlaywrightBridgeDriver()
     monkeypatch.setattr(driver, "_is_playwright_available", lambda: True)
@@ -302,6 +302,128 @@ def test_playwright_bridge_driver_returns_mapping_unsupported_for_unknown_task(
     assert result.artifacts["integration"] == "entrypoint-ready"
     assert result.artifacts["mapping"]["supported"] is False
     assert result.artifacts["mapping"]["action"] is None
+
+
+def test_playwright_bridge_driver_executes_select_option_action(
+    monkeypatch,
+) -> None:
+    class _FakeLocator:
+        def __init__(self):
+            self.selected = ""
+
+        def select_option(self, value):
+            self.selected = value
+
+    class _FakePage:
+        def __init__(self):
+            self.label = ""
+            self.locator = _FakeLocator()
+
+        def get_by_label(self, label, exact=True):
+            _ = exact
+            self.label = label
+            return self.locator
+
+    step = ResolvedStep(task="在“地域”下拉框选择“华东1（杭州）”", source=Path("demo.yaml"))
+    context = ExecutionContext(case_name="demo", run_id="run-006-select")
+    driver = PlaywrightBridgeDriver()
+    fake_page = _FakePage()
+
+    monkeypatch.setattr(driver, "_is_playwright_available", lambda: True)
+    monkeypatch.setattr(driver, "_create_runtime_page", lambda _: fake_page)
+
+    result = driver.execute_step(step, context)
+
+    assert result.success is True
+    assert result.artifacts["integration"] == "runtime-executed"
+    assert result.artifacts["mapping"]["action"]["action"] == "select_option"
+    assert fake_page.label == "地域"
+    assert fake_page.locator.selected == "华东1（杭州）"
+
+
+def test_playwright_bridge_driver_executes_wait_action(
+    monkeypatch,
+) -> None:
+    class _FakePage:
+        pass
+
+    recorded_seconds: list[float] = []
+
+    step = ResolvedStep(task="等待 1.5 秒", source=Path("demo.yaml"))
+    context = ExecutionContext(case_name="demo", run_id="run-006-wait")
+    driver = PlaywrightBridgeDriver()
+
+    monkeypatch.setattr(driver, "_is_playwright_available", lambda: True)
+    monkeypatch.setattr(driver, "_create_runtime_page", lambda _: _FakePage())
+    monkeypatch.setattr("aut.runner.playwright_bridge_driver.time.sleep", lambda s: recorded_seconds.append(s))
+
+    result = driver.execute_step(step, context)
+
+    assert result.success is True
+    assert result.artifacts["integration"] == "runtime-executed"
+    assert result.artifacts["mapping"]["action"]["action"] == "wait"
+    assert recorded_seconds == [1.5]
+
+
+def test_playwright_bridge_driver_executes_assert_text_visible_action(
+    monkeypatch,
+) -> None:
+    class _FakeLocator:
+        def __init__(self, visible: bool):
+            self.visible = visible
+
+        def is_visible(self):
+            return self.visible
+
+    class _FakePage:
+        def __init__(self, visible: bool):
+            self.visible = visible
+            self.last_text = ""
+
+        def get_by_text(self, text, exact=True):
+            _ = exact
+            self.last_text = text
+            return _FakeLocator(self.visible)
+
+    step = ResolvedStep(task="断言“登录成功”文本可见", source=Path("demo.yaml"))
+    context = ExecutionContext(case_name="demo", run_id="run-006-assert")
+    driver = PlaywrightBridgeDriver()
+    fake_page = _FakePage(visible=True)
+
+    monkeypatch.setattr(driver, "_is_playwright_available", lambda: True)
+    monkeypatch.setattr(driver, "_create_runtime_page", lambda _: fake_page)
+
+    result = driver.execute_step(step, context)
+
+    assert result.success is True
+    assert result.artifacts["mapping"]["action"]["action"] == "assert_text_visible"
+    assert fake_page.last_text == "登录成功"
+
+
+def test_playwright_bridge_driver_returns_failed_when_assert_text_not_visible(
+    monkeypatch,
+) -> None:
+    class _FakeLocator:
+        def is_visible(self):
+            return False
+
+    class _FakePage:
+        def get_by_text(self, text, exact=True):
+            _ = text, exact
+            return _FakeLocator()
+
+    step = ResolvedStep(task="断言“登录成功”文本可见", source=Path("demo.yaml"))
+    context = ExecutionContext(case_name="demo", run_id="run-006-assert-failed")
+    driver = PlaywrightBridgeDriver()
+
+    monkeypatch.setattr(driver, "_is_playwright_available", lambda: True)
+    monkeypatch.setattr(driver, "_create_runtime_page", lambda _: _FakePage())
+
+    result = driver.execute_step(step, context)
+
+    assert result.success is False
+    assert result.artifacts["integration"] == "runtime-execution-failed"
+    assert "text not visible" in result.message
 
 
 def test_playwright_bridge_driver_returns_failed_when_action_execution_throws(

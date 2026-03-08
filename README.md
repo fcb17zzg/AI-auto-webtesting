@@ -113,6 +113,9 @@ python -m aut.runner.cli --case cases/common/playwright_e2e_demo.yaml --run --dr
 - `打开 "URL"` -> `goto`
 - `点击“按钮文案”按钮` -> `click`
 - `在“输入框文案”输入框输入“值”` -> `fill`
+- `在“下拉框文案”下拉框选择“值”` -> `select_option`
+- `等待 N 秒` -> `wait`
+- `断言“文本”文本可见` -> `assert_text_visible`
 
 对于未覆盖的 task 模式，桥接驱动会在 `artifacts.mapping.supported` 返回 `false`，用于后续补齐映射规则。
 

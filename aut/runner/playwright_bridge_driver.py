@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from importlib.util import find_spec
+import time
 from typing import Any
 
 from aut.dsl import ResolvedStep
@@ -206,6 +207,19 @@ class PlaywrightBridgeDriver(Driver):
             return
         if action == "fill":
             page.get_by_label(target, exact=True).fill(value)
+            return
+        if action == "select_option":
+            page.get_by_label(target, exact=True).select_option(value=value)
+            return
+        if action == "wait":
+            seconds = float(options.get("seconds", value or 0.0))
+            time.sleep(seconds)
+            return
+        if action == "assert_text_visible":
+            locator = page.get_by_text(value, exact=bool(options.get("exact", True)))
+            is_visible = getattr(locator, "is_visible", None)
+            if not callable(is_visible) or not bool(is_visible()):
+                raise RuntimeError(f"text not visible: {value}")
             return
 
         raise ValueError(f"Unsupported mapped action: {action}")

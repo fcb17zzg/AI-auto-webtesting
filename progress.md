@@ -68,16 +68,19 @@
 - e2e 样例 `cases/common/playwright_e2e_demo.yaml` 新增可选变量化参数（带默认值），支持按环境覆盖登录 URL/文案/断言文本
 - README 增补 e2e 样例变量清单与覆盖示例命令，降低本地演示与联调门槛
 - 新增 e2e 变量覆盖回归测试并通过；全量回归通过（`48 passed, 3 skipped`）
+- 扩展 Playwright task mapping：新增“下拉框选择 / 等待秒数 / 文本可见断言”三类 DSL 任务模式
+- Playwright 驱动新增 `select_option/wait/assert_text_visible` 执行动作，统一纳入 replay 与失败分支
+- 新增 task mapper 与驱动动作回归测试并通过（全量回归通过）
 
 ## 进行中
 
-- 按业务 DSL 扩展 task mapping（如下拉选择、等待、文本断言）并补齐回归
+- 增补 browser-use 规划动作白名单与可观测性文档
 
 ## 下一步
 
-1. 按业务 DSL 扩展 task mapping（如下拉选择、等待、文本断言）并补齐回归
-2. 增补 browser-use 规划动作白名单与可观测性文档
-3. 设计并验证“复杂任务拆分为多动作计划”的执行协议
+1. 增补 browser-use 规划动作白名单与可观测性文档
+2. 设计并验证“复杂任务拆分为多动作计划”的执行协议
+3. 为关键步骤补充可选截图/日志采集开关与回放可观测字段
 
 ## 风险
 
