@@ -1,0 +1,62 @@
+Metadata-Version: 2.4
+Name: aut-mvp
+Version: 0.1.0
+Summary: AI UI automation testing MVP
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: jinja2>=3.1.4
+Requires-Dist: pyyaml>=6.0.2
+Provides-Extra: dev
+Requires-Dist: pytest>=8.3.0; extra == "dev"
+
+# AUT MVP
+
+AUT 是一个面向内部 Web 管理后台的 AI 前端自动化测试框架原型项目。
+
+当前版本已完成：
+
+- 项目骨架
+- YAML DSL 最小解析器
+- `preSteps` 递归展开
+- Jinja2 变量替换
+- CLI 执行计划查看入口
+- 示例用例与单元测试
+
+## 目录结构
+
+```text
+browse_auto_test/
+  aut/
+    config/
+    dsl/
+    runner/
+  cases/
+    common/
+    product/
+  tests/
+  prd.md
+  progress.md
+  README.md
+```
+
+## 安装依赖
+
+```bash
+pip install -e .
+```
+
+## 查看执行计划
+
+```bash
+python -m aut.runner.cli --case cases/product/create_vpc.yaml --var ASCM_URL=http://example.com --var DEFAULT_ORG_ID=default-org --var VPC_NAME_UNIQUE=vpc-demo
+```
+
+## 运行测试
+
+```bash
+pytest
+```
+
+## 当前说明
+
+当前 CLI 不会真正操作浏览器，而是输出解析后的执行计划。这一步用于先稳定 DSL、变量系统和前置步骤展开逻辑，后续再接入 driver、LLM 和 replay。

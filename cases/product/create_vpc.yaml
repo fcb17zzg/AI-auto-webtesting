@@ -1,0 +1,15 @@
+testType: ascm
+testName: create_vpc_unique
+testId: demo-001
+testDescription: 使用默认参数创建 VPC
+preSteps:
+  - common/login.yaml
+testSteps:
+  - task: 打开 "{{ ASCM_URL }}/vpc/console/vpcPage?{{ DEFAULT_ORG_ID }}"
+  - task: 点击“创建专有网络”按钮
+  - task: 在“专有网络名称”输入框输入“{{ VPC_NAME_UNIQUE }}”
+  - task: 点击“提交”按钮
+    expected:
+      - type: playwright
+        locator: get_by_text("操作成功", exact=True)
+        method: to_be_visible()

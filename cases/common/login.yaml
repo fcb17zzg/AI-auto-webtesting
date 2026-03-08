@@ -1,0 +1,7 @@
+testName: common_login
+testDescription: 公共登录前置步骤
+testSteps:
+  - task: 打开 "{{ ASCM_URL }}/login"
+  - task: 在“用户名”输入框输入“{{ USERNAME }}”
+  - task: 在“密码”输入框输入“{{ PASSWORD }}”
+  - task: 点击“登录”按钮
