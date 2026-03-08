@@ -10,6 +10,7 @@ import pytest
 from aut.runner import cli
 from aut.replay import ReplayStore
 from aut.replay.schema import ReplayRecord
+from aut.runner.contracts import StepResult
 
 
 def test_cli_run_outputs_execution_and_replay_file(tmp_path: Path) -> None:
@@ -332,3 +333,59 @@ def test_cli_run_pytest_mode_writes_allure_results_batch(
     assert batch["total"] == 1
     assert Path(batch["files"][0]["result"]).exists()
     assert Path(batch["files"][0]["container"]).exists()
+
+
+def test_cli_run_with_playwright_driver_uses_playwright_assertion_executor(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    captured_executor_types: list[type] = []
+
+    class _FakeEngine:
+        def __init__(self, driver, assertion_executor=None):
+            self.driver = driver
+            self.assertion_executor = assertion_executor
+            captured_executor_types.append(type(assertion_executor))
+
+        def run_case(self, case, context):
+            _ = case, context
+            return [StepResult(task="demo", success=False, message="bridge")]
+
+    class _FakeExecutor:
+        pass
+
+    monkeypatch.setattr(cli, "ExecutionEngine", _FakeEngine)
+    monkeypatch.setattr(cli, "PlaywrightAssertionExecutor", _FakeExecutor)
+
+    exit_code = cli.main(
+        [
+            "--case",
+            "product/create_vpc.yaml",
+            "--case-root",
+            str(project_root / "cases"),
+            "--replay-dir",
+            str(tmp_path / "replays"),
+            "--run",
+            "--driver",
+            "playwright",
+            "--var",
+            "ASCM_URL=http://example.com",
+            "--var",
+            "USERNAME=tester",
+            "--var",
+            "PASSWORD=secret",
+            "--var",
+            "DEFAULT_ORG_ID=org-1",
+            "--var",
+            "VPC_NAME_UNIQUE=vpc-001",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+
+    assert exit_code == 0
+    assert payload["execution"]["driver"] == "playwright"
+    assert captured_executor_types == [_FakeExecutor]

@@ -18,6 +18,7 @@ from aut.runner import (
     DryRunDriver,
     ExecutionContext,
     ExecutionEngine,
+    PlaywrightAssertionExecutor,
     PlaywrightBridgeDriver,
     discover_case_files,
     run_cases_with_pytest,
@@ -191,7 +192,8 @@ def main(argv: list[str] | None = None) -> int:
             variables=variables,
         )
         driver = build_driver(args.driver)
-        engine = ExecutionEngine(driver)
+        assertion_executor = PlaywrightAssertionExecutor() if args.driver == "playwright" else None
+        engine = ExecutionEngine(driver, assertion_executor=assertion_executor)
         results = engine.run_case(resolved_case, context)
         replay_record = build_replay_record(
             case=resolved_case,

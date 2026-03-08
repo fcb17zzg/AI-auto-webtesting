@@ -95,3 +95,8 @@ python -m aut.runner.cli --run-pytest --case-root cases --case-filter vpc --repl
 - `在“输入框文案”输入框输入“值”` -> `fill`
 
 对于未覆盖的 task 模式，桥接驱动会在 `artifacts.mapping.supported` 返回 `false`，用于后续补齐映射规则。
+
+断言执行链路已接入 `PlaywrightAssertionExecutor`：
+
+- 当 `ExecutionContext.variables["playwright.page"]` 可用时，会尝试执行真实 `expect(locator).method(...)`
+- 当运行态 page 尚不可用时，会回退到结构化断言校验，保持现有 dry-run 与桥接链路稳定

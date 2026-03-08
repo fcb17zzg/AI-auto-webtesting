@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import ast
+from importlib.util import find_spec
 from typing import Any
 
 from .contracts import AssertionResult, ExecutionContext
 
 SUPPORTED_ASSERTION_TYPES = {"playwright", "validator"}
+PLAYWRIGHT_PAGE_KEY = "playwright.page"
 
 
 class PlaceholderAssertionExecutor:
@@ -76,3 +79,136 @@ class PlaceholderAssertionExecutor:
             passed=True,
             reason="",
         )
+
+
+class PlaywrightAssertionExecutor:
+    """Run Playwright assertions when runtime context is available.
+
+    Fallback mode keeps current MVP chain stable by validating assertion structure
+    when Playwright page context is not present yet.
+    """
+
+    def __init__(self):
+        self._fallback = PlaceholderAssertionExecutor()
+
+    def evaluate(
+        self,
+        expected: list[dict[str, Any]],
+        context: ExecutionContext,
+    ) -> list[AssertionResult]:
+        results: list[AssertionResult] = []
+        for raw_item in expected:
+            assertion_type = str(raw_item.get("type", "")).strip()
+            if assertion_type != "playwright":
+                results.append(self._fallback._evaluate_item(raw_item))
+                continue
+
+            results.append(self._evaluate_playwright_item(raw_item, context))
+        return results
+
+    def _evaluate_playwright_item(
+        self,
+        raw_item: dict[str, Any],
+        context: ExecutionContext,
+    ) -> AssertionResult:
+        base = self._fallback._evaluate_item(raw_item)
+        if not base.passed:
+            return base
+
+        locator = str(raw_item.get("locator", "")).strip()
+        method = str(raw_item.get("method", "")).strip()
+
+        page = context.variables.get(PLAYWRIGHT_PAGE_KEY)
+        if page is None or not self._is_playwright_available():
+            return AssertionResult(
+                type="playwright",
+                locator=locator,
+                method=method,
+                passed=True,
+                reason="",
+            )
+
+        locator_call = self._parse_call_expression(locator)
+        if locator_call is None:
+            return AssertionResult(
+                type="playwright",
+                locator=locator,
+                method=method,
+                passed=False,
+                reason="invalid playwright locator expression",
+            )
+
+        method_call = self._parse_call_expression(method)
+        if method_call is None:
+            return AssertionResult(
+                type="playwright",
+                locator=locator,
+                method=method,
+                passed=False,
+                reason="invalid playwright assertion method expression",
+            )
+
+        try:
+            resolved_locator = getattr(page, locator_call["name"])(
+                *locator_call["args"],
+                **locator_call["kwargs"],
+            )
+            expectation = self._resolve_expect(resolved_locator)
+            getattr(expectation, method_call["name"])(
+                *method_call["args"],
+                **method_call["kwargs"],
+            )
+            return AssertionResult(
+                type="playwright",
+                locator=locator,
+                method=method,
+                passed=True,
+                reason="",
+            )
+        except Exception as exc:
+            return AssertionResult(
+                type="playwright",
+                locator=locator,
+                method=method,
+                passed=False,
+                reason=f"playwright assertion failed: {exc}",
+            )
+
+    def _resolve_expect(self, locator: Any):
+        from playwright.sync_api import expect
+
+        return expect(locator)
+
+    def _is_playwright_available(self) -> bool:
+        return find_spec("playwright") is not None
+
+    def _parse_call_expression(self, value: str) -> dict[str, Any] | None:
+        try:
+            node = ast.parse(value, mode="eval")
+        except SyntaxError:
+            return None
+
+        call = node.body
+        if not isinstance(call, ast.Call):
+            return None
+        if not isinstance(call.func, ast.Name):
+            return None
+
+        args: list[Any] = []
+        kwargs: dict[str, Any] = {}
+
+        try:
+            for arg in call.args:
+                args.append(ast.literal_eval(arg))
+            for keyword in call.keywords:
+                if keyword.arg is None:
+                    return None
+                kwargs[keyword.arg] = ast.literal_eval(keyword.value)
+        except Exception:
+            return None
+
+        return {
+            "name": call.func.id,
+            "args": args,
+            "kwargs": kwargs,
+        }

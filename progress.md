@@ -42,20 +42,23 @@
 - 新增 Playwright 任务映射策略首版：支持“打开 URL / 点击按钮 / 输入框输入”三类 DSL task 解析
 - Playwright 桥接驱动接入 task mapping 元数据输出（supported/action），支持识别未覆盖任务模式
 - 新增 Playwright task mapper 与桥接驱动映射单测并通过（当前总计 32 条测试）
+- 新增真实 Playwright 断言执行器：支持在 `ExecutionContext.variables["playwright.page"]` 可用时执行 `expect(locator).assertion()`
+- Playwright 驱动执行链路接入真实断言执行器；无 runtime page 时回退结构化校验，兼容 dry-run 主链路
+- 新增断言执行器单测与 CLI 接入测试并通过（当前总计 37 条测试）
 
 ## 进行中
 
-- 接入真实 Playwright 断言执行器（替换占位断言实现）
+- 增加断言失败截图与附件采集策略
 
 ## 下一步
 
-1. 接入真实 Playwright 断言执行器（替换占位断言实现）
-2. 增加断言失败截图与附件采集策略
-3. 将 task mapping 动作计划接入真实 Playwright 浏览器执行链路
+1. 增加断言失败截图与附件采集策略
+2. 将 task mapping 动作计划接入真实 Playwright 浏览器执行链路
+3. 规划 browser-use 适配层接口草案与验证路径
 
 ## 风险
 
-- 当前断言仍为占位执行器，尚未接入真实 Playwright 断言能力
+- Playwright 断言执行已接入，但真实浏览器执行链路尚未打通，当前仍缺少运行态 page 注入来源
 - 模型与 browser-use 适配还未开始，后续可能影响接口设计
 
 ## 决策记录

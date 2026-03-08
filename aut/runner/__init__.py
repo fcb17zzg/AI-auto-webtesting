@@ -1,6 +1,6 @@
 """Runner package for AUT."""
 
-from .assertions import PlaceholderAssertionExecutor
+from .assertions import PLAYWRIGHT_PAGE_KEY, PlaceholderAssertionExecutor, PlaywrightAssertionExecutor
 from .contracts import AssertionExecutor, AssertionResult, Driver, ExecutionContext, StepResult
 from .dry_run_driver import DryRunDriver
 from .engine import ExecutionEngine
@@ -15,6 +15,8 @@ __all__ = [
 	"ExecutionContext",
 	"StepResult",
 	"PlaceholderAssertionExecutor",
+	"PlaywrightAssertionExecutor",
+	"PLAYWRIGHT_PAGE_KEY",
 	"DryRunDriver",
 	"PlaywrightBridgeDriver",
 	"ExecutionEngine",
