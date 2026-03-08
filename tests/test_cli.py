@@ -500,3 +500,116 @@ def test_cli_playwright_e2e_sample_writes_png_attachment_and_allure_outputs(
     attachment_items = failed_step["artifacts"]["attachments"]
     assert attachment_items[0]["name"] == "assertion-failure-screenshot"
     assert attachment_items[0]["contentType"] == "image/png"
+
+
+def test_cli_playwright_e2e_sample_supports_variable_overrides(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    class _FakeLocator:
+        def __init__(self):
+            self.filled_value = None
+            self.clicked = False
+
+        def fill(self, value):
+            self.filled_value = value
+
+        def click(self):
+            self.clicked = True
+
+    class _FakePage:
+        def __init__(self):
+            self.last_url = ""
+            self.last_role = ""
+            self.last_role_name = ""
+            self.role_locator = _FakeLocator()
+            self.label_locator = _FakeLocator()
+
+        def goto(self, url):
+            self.last_url = url
+
+        def get_by_role(self, role, name, **kwargs):
+            _ = kwargs
+            self.last_role = role
+            self.last_role_name = name
+            return self.role_locator
+
+        def get_by_label(self, label, exact=True):
+            _ = label, exact
+            return self.label_locator
+
+        def get_by_text(self, text, **kwargs):
+            _ = kwargs
+            return {"text": text}
+
+        def screenshot(self, full_page=True):
+            _ = full_page
+            return b"fake-png"
+
+    class _FakeExpectation:
+        def __init__(self, locator):
+            self.locator = locator
+
+        def to_be_visible(self):
+            raise RuntimeError(f"expected visible but got: {self.locator}")
+
+    fake_page = _FakePage()
+
+    monkeypatch.setattr(
+        cli.PlaywrightBridgeDriver,
+        "_is_playwright_available",
+        lambda self: True,
+    )
+    monkeypatch.setattr(
+        cli.PlaywrightBridgeDriver,
+        "_create_runtime_page",
+        lambda self, context: fake_page,
+    )
+    monkeypatch.setattr(
+        cli.PlaywrightAssertionExecutor,
+        "_is_playwright_available",
+        lambda self: True,
+    )
+    monkeypatch.setattr(
+        cli.PlaywrightAssertionExecutor,
+        "_resolve_expect",
+        lambda self, locator: _FakeExpectation(locator),
+    )
+
+    project_root = Path(__file__).resolve().parents[1]
+    replay_dir = tmp_path / "replays"
+
+    exit_code = cli.main(
+        [
+            "--case",
+            "common/playwright_e2e_demo.yaml",
+            "--case-root",
+            str(project_root / "cases"),
+            "--replay-dir",
+            str(replay_dir),
+            "--run",
+            "--driver",
+            "playwright",
+            "--var",
+            "LOGIN_URL=http://example.com/signin",
+            "--var",
+            "LOGIN_USERNAME=alice",
+            "--var",
+            "LOGIN_BUTTON_TEXT=立即登录",
+            "--var",
+            "LOGIN_SUCCESS_TEXT=欢迎回来",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+
+    assert exit_code == 0
+    assert payload["execution"]["driver"] == "playwright"
+    assert payload["execution"]["step_count"] == 3
+    assert payload["execution"]["failed"] is True
+    assert fake_page.last_url == "http://example.com/signin"
+    assert fake_page.label_locator.filled_value == "alice"
+    assert fake_page.last_role == "button"
+    assert fake_page.last_role_name == "立即登录"

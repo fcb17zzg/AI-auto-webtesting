@@ -65,20 +65,23 @@
 - 新增 browser-use 规划到执行闭环策略：若存在 `BrowserUsePlan` 则优先映射为可执行动作（`goto/click/fill`），否则回退 task mapping
 - Playwright 驱动执行结果新增 `execution.source/action` 元数据，区分 `browser-use-plan` 与 `task-mapping`
 - 新增 browser-use 规划执行与不支持动作失败分支测试并通过（全量回归通过）
+- e2e 样例 `cases/common/playwright_e2e_demo.yaml` 新增可选变量化参数（带默认值），支持按环境覆盖登录 URL/文案/断言文本
+- README 增补 e2e 样例变量清单与覆盖示例命令，降低本地演示与联调门槛
+- 新增 e2e 变量覆盖回归测试并通过；全量回归通过（`48 passed, 3 skipped`）
 
 ## 进行中
 
-- 为 e2e 样例增加可选变量化参数与文档化运行说明
+- 按业务 DSL 扩展 task mapping（如下拉选择、等待、文本断言）并补齐回归
 
 ## 下一步
 
-1. 为 e2e 样例增加可选变量化参数与文档化运行说明
-2. 按业务 DSL 扩展 task mapping（如下拉选择、等待、文本断言）并补齐回归
-3. 增补 browser-use 规划动作白名单与可观测性文档
+1. 按业务 DSL 扩展 task mapping（如下拉选择、等待、文本断言）并补齐回归
+2. 增补 browser-use 规划动作白名单与可观测性文档
+3. 设计并验证“复杂任务拆分为多动作计划”的执行协议
 
 ## 风险
 
-- browser-use 已接入执行闭环，但规划动作白名单仍较小（当前仅 `goto/click/fill`）
+- browser-use 已接入执行闭环，但规划动作白名单仍较小（当前仅 `goto/click/fill`），复杂场景覆盖不足
 - 模型与 browser-use 适配还未开始，后续可能影响接口设计
 
 ## 决策记录

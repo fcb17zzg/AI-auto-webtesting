@@ -90,6 +90,20 @@ python -m aut.runner.cli --run-pytest --case-root cases --case-filter vpc --repl
 python -m aut.runner.cli --case cases/common/playwright_e2e_demo.yaml --run --driver playwright --replay-dir .aut/replays --allure-results-dir .aut/allure-results
 ```
 
+`cases/common/playwright_e2e_demo.yaml` 支持可选变量（未传入时使用默认值）：
+
+- `LOGIN_URL`（默认 `http://example.com/login`）
+- `LOGIN_USERNAME_LABEL`（默认 `用户名`）
+- `LOGIN_USERNAME`（默认 `tester`）
+- `LOGIN_BUTTON_TEXT`（默认 `登录`）
+- `LOGIN_SUCCESS_TEXT`（默认 `登录成功`）
+
+示例（覆盖端到端样例变量）：
+
+```bash
+python -m aut.runner.cli --case cases/common/playwright_e2e_demo.yaml --run --driver playwright --replay-dir .aut/replays --allure-results-dir .aut/allure-results --var LOGIN_URL=http://example.com/signin --var LOGIN_USERNAME_LABEL=账号 --var LOGIN_USERNAME=alice --var LOGIN_BUTTON_TEXT=立即登录 --var LOGIN_SUCCESS_TEXT=欢迎回来
+```
+
 ## 当前说明
 
 当前 `playwright` 驱动已接入真实动作执行链路：可在 runtime page 可用时执行 `goto/click/fill`，并将执行结果写入 replay 与报告链路。执行结束后会自动释放 runtime `page/context/browser` 资源。默认 `dry-run` 仍用于稳定主链路。

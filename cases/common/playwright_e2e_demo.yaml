@@ -1,10 +1,10 @@
 testName: playwright_e2e_demo
 testDescription: 端到端演示样例（执行、断言、附件、报告）
 testSteps:
-  - task: 打开 "http://example.com/login"
-  - task: 在“用户名”输入框输入“tester”
-  - task: 点击“登录”按钮
+  - task: 打开 "{{ LOGIN_URL | default('http://example.com/login') }}"
+  - task: 在“{{ LOGIN_USERNAME_LABEL | default('用户名') }}”输入框输入“{{ LOGIN_USERNAME | default('tester') }}”
+  - task: 点击“{{ LOGIN_BUTTON_TEXT | default('登录') }}”按钮
     expected:
       - type: playwright
-        locator: get_by_text("登录成功")
+        locator: get_by_text("{{ LOGIN_SUCCESS_TEXT | default('登录成功') }}")
         method: to_be_visible()
