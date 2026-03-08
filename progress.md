@@ -111,6 +111,8 @@
 - 新增 case 波动 TopN 排序回归测试：覆盖按失败率与按类别分布复杂度的排序结果
 - M4-3 第九项完成：夜间 CI 接入 case 波动 TopN 摘要与告警上下文（Step Summary + `stability-alert-context.json` Artifact）
 - 夜间工作流告警脚本增强：输出 TopN 表格与阈值上下文，便于快速定位高波动 case
+- M4-3 第十项完成：新增 case 波动 TopN 可配置尺寸（CLI `--stability-case-topn` + CI `case_fluctuation_topn` 输入）
+- 新增 TopN 尺寸回归测试：覆盖默认行为与 `--stability-case-topn=1` 自定义裁剪
 
 ## 进行中
 
@@ -118,7 +120,7 @@
 
 ## 下一步
 
-1. 增加 case 波动 TopN 的可配置尺寸（CLI/CI `topN` 参数）并补齐回归测试
+1. 为 case 波动 TopN 增加最小失败率过滤阈值（避免低波动样本进入 TopN）
 
 ## 风险
 

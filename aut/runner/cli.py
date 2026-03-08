@@ -292,6 +292,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Consecutive pass threshold for --run-stability gate, defaults to 10",
     )
     parser.add_argument(
+        "--stability-case-topn",
+        type=_positive_int,
+        default=5,
+        help="TopN size for summary.caseFluctuationTopN views, defaults to 5",
+    )
+    parser.add_argument(
         "--case-glob",
         default="**/*.yaml",
         help="Glob pattern for selecting cases in case-root, defaults to **/*.yaml",
@@ -586,6 +592,7 @@ def main(argv: list[str] | None = None) -> int:
                 },
                 "caseFluctuationTopN": _build_case_fluctuation_topn(
                     per_case_stats=case_stability_stats,
+                    top_n=args.stability_case_topn,
                 ),
             },
             "plannerFailureTrend": planner_failure_trend,

@@ -146,6 +146,7 @@ python -m aut.runner.cli --run-stability --case-root cases --case-filter playwri
 
 - `--stability-runs`：重复执行总次数（默认 `10`）
 - `--stability-min-consecutive-pass`：连续通过门槛（默认 `10`，需小于等于 `--stability-runs`）
+- `--stability-case-topn`：`summary.caseFluctuationTopN` 视图尺寸（默认 `5`）
 
 输出包含：
 
@@ -165,6 +166,7 @@ CI/夜间任务已纳入稳定性回归：
 - 默认阈值：
   - `STABILITY_RUNS=10`
   - `STABILITY_MIN_CONSECUTIVE_PASS=10`
+  - `STABILITY_CASE_FLUCTUATION_TOPN=5`
   - `STABILITY_MIN_PASS_RATE=0.95`
   - `STABILITY_MAX_PLANNER_FAILURES=0`
 

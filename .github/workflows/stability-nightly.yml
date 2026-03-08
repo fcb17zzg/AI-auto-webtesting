@@ -17,6 +17,10 @@ on:
         description: "Gate threshold for min consecutive pass"
         required: false
         default: "10"
+      case_fluctuation_topn:
+        description: "TopN size for case fluctuation views"
+        required: false
+        default: "5"
       min_pass_rate:
         description: "Alert threshold for summary.passRate"
         required: false
@@ -34,6 +38,7 @@ jobs:
       CASE_FILTER: ${{ inputs.case_filter || 'playwright_e2e_demo' }}
       STABILITY_RUNS: ${{ inputs.stability_runs || '10' }}
       STABILITY_MIN_CONSECUTIVE_PASS: ${{ inputs.min_consecutive_pass || '10' }}
+      STABILITY_CASE_FLUCTUATION_TOPN: ${{ inputs.case_fluctuation_topn || '5' }}
       STABILITY_MIN_PASS_RATE: ${{ inputs.min_pass_rate || '0.95' }}
       STABILITY_MAX_PLANNER_FAILURES: ${{ inputs.max_planner_failures || '0' }}
 
@@ -63,6 +68,7 @@ jobs:
             --replay-dir .aut/replays \
             --stability-runs "${STABILITY_RUNS}" \
             --stability-min-consecutive-pass "${STABILITY_MIN_CONSECUTIVE_PASS}" \
+            --stability-case-topn "${STABILITY_CASE_FLUCTUATION_TOPN}" \
             > stability-report.json
           cli_exit_code=$?
           set -e

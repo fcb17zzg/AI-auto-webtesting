@@ -609,6 +609,74 @@ def test_cli_run_stability_mode_outputs_case_fluctuation_topn(
     assert topn["byCategoryDistribution"][1]["plannerFailureCategoryCount"] == 1
 
 
+def test_cli_run_stability_mode_respects_case_fluctuation_topn_size(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    case_a = project_root / "cases" / "common" / "login.yaml"
+    case_b = project_root / "cases" / "product" / "create_vpc.yaml"
+    case_c = project_root / "cases" / "common" / "playwright_e2e_demo.yaml"
+
+    monkeypatch.setattr(cli, "discover_case_files", lambda **_: [case_a, case_b, case_c])
+
+    # 3 runs * 3 cases, each case fails once with a planner-related category.
+    run_outputs = iter(
+        [
+            subprocess.CompletedProcess(
+                ["pytest"],
+                1,
+                stdout="browser-use plan failed: planner boom",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(["pytest"], 0, stdout="all passed", stderr=""),
+            subprocess.CompletedProcess(["pytest"], 0, stdout="all passed", stderr=""),
+            subprocess.CompletedProcess(["pytest"], 0, stdout="all passed", stderr=""),
+            subprocess.CompletedProcess(
+                ["pytest"],
+                1,
+                stdout="unsupported browser-use plan action: hover",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(["pytest"], 0, stdout="all passed", stderr=""),
+            subprocess.CompletedProcess(["pytest"], 0, stdout="all passed", stderr=""),
+            subprocess.CompletedProcess(["pytest"], 0, stdout="all passed", stderr=""),
+            subprocess.CompletedProcess(
+                ["pytest"],
+                1,
+                stdout="playwright action execution failed: boom",
+                stderr="",
+            ),
+        ]
+    )
+
+    monkeypatch.setattr(cli, "run_cases_with_pytest", lambda **_: next(run_outputs))
+
+    _ = cli.main(
+        [
+            "--run-stability",
+            "--case-root",
+            str(project_root / "cases"),
+            "--replay-dir",
+            str(tmp_path / "replays"),
+            "--stability-runs",
+            "3",
+            "--stability-min-consecutive-pass",
+            "1",
+            "--stability-case-topn",
+            "1",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    topn = payload["summary"]["caseFluctuationTopN"]
+
+    assert topn["size"] == 1
+    assert len(topn["byFailureRate"]) == 1
+    assert len(topn["byCategoryDistribution"]) == 1
+
+
 def test_cli_run_stability_rejects_invalid_threshold() -> None:
     with pytest.raises(SystemExit):
         cli.main(
