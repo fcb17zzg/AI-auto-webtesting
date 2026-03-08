@@ -55,8 +55,6 @@ def test_case_scheduler_executes_resolved_case(case_path: Path) -> None:
     engine = ExecutionEngine(DryRunDriver())
 
     results = engine.run_case(resolved_case, context)
-    assert results
-    assert all(item.success for item in results)
 
     replay_record = build_replay_record(
         case=resolved_case,
@@ -66,3 +64,5 @@ def test_case_scheduler_executes_resolved_case(case_path: Path) -> None:
     )
     replay_file = ReplayStore(replay_dir).save(replay_record)
     assert replay_file.exists()
+    assert results
+    assert all(item.success for item in results)

@@ -29,6 +29,8 @@
 - 新增调度入口测试与调度器基础单测
 - 新增 Allure 报告最小字段映射：步骤、断言、失败上下文（`report.allure`）
 - 新增 Allure 映射单测并通过
+- 新增报告链路最小集成测试：覆盖失败样例与多 case 聚合
+- `--run-pytest` 输出新增 `report.allureBatch` 聚合结果（summary + per-case 结果）
 
 ## 进行中
 
@@ -36,9 +38,9 @@
 
 ## 下一步
 
-1. 为报告链路补充最小集成测试（含失败样例与多 case 聚合）
-2. 评估真实浏览器驱动接入点（与断言执行器对齐）
-3. 设计 Allure 实体落盘格式（result/container/attachment）
+1. 评估真实浏览器驱动接入点（与断言执行器对齐）
+2. 设计 Allure 实体落盘格式（result/container/attachment）
+3. 增加调度链路的 Allure 落盘输出（allure-results 目录）
 
 ## 风险
 

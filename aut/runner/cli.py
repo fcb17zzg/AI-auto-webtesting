@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from aut.dsl import CaseParser
-from aut.reporting import map_replay_record_to_allure
+from aut.reporting import map_replay_files_to_allure_batch, map_replay_record_to_allure
 from aut.replay import ReplayStore, build_replay_record
 from aut.runner import (
     DryRunDriver,
@@ -16,6 +16,13 @@ from aut.runner import (
     discover_case_files,
     run_cases_with_pytest,
 )
+
+
+def _collect_new_replay_files(replay_dir: Path, existing: set[Path]) -> list[Path]:
+    if not replay_dir.exists():
+        return []
+    current = {path.resolve() for path in replay_dir.glob("*.json") if path.is_file()}
+    return sorted(current - existing)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -88,6 +95,13 @@ def main(argv: list[str] | None = None) -> int:
 
     variables = parse_vars(args.var)
     if args.run_pytest:
+        replay_dir = Path(args.replay_dir).resolve()
+        existing_replays = set()
+        if replay_dir.exists():
+            existing_replays = {
+                path.resolve() for path in replay_dir.glob("*.json") if path.is_file()
+            }
+
         selected_cases = discover_case_files(
             case_root=args.case_root,
             case_glob=args.case_glob,
@@ -113,6 +127,13 @@ def main(argv: list[str] | None = None) -> int:
             "stdout": completed.stdout,
             "stderr": completed.stderr,
         }
+
+        new_replay_files = _collect_new_replay_files(replay_dir, existing_replays)
+        if new_replay_files:
+            payload["report"] = {
+                "allureBatch": map_replay_files_to_allure_batch(new_replay_files),
+            }
+
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return completed.returncode
 
