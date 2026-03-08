@@ -176,6 +176,11 @@ CI/夜间任务已纳入稳定性回归：
 - `summary.passRate < STABILITY_MIN_PASS_RATE`
 - `summary.plannerFailureStats.total > STABILITY_MAX_PLANNER_FAILURES`
 
+夜间 CI 还会额外产出：
+
+- `stability-alert-context.json`（包含阈值上下文 + `caseFluctuationTopN`）
+- GitHub Step Summary 表格（`byFailureRate` + `byCategoryDistribution` 两个 TopN 视图）
+
 示例（Playwright 端到端样例 + Allure 附件落盘）：
 
 ```bash

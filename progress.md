@@ -109,6 +109,8 @@
 - 补充 real-model 生产参数建议与重试语义文档：覆盖 `429/5xx/网络抖动` 重试、非重试错误与指数退避策略
 - M4-3 第八项完成：稳定性报告新增 case 波动 TopN 视图（`summary.caseFluctuationTopN.byFailureRate/byCategoryDistribution`）
 - 新增 case 波动 TopN 排序回归测试：覆盖按失败率与按类别分布复杂度的排序结果
+- M4-3 第九项完成：夜间 CI 接入 case 波动 TopN 摘要与告警上下文（Step Summary + `stability-alert-context.json` Artifact）
+- 夜间工作流告警脚本增强：输出 TopN 表格与阈值上下文，便于快速定位高波动 case
 
 ## 进行中
 
@@ -116,7 +118,7 @@
 
 ## 下一步
 
-1. 将 case 波动 TopN 指标接入夜间 CI 摘要与告警上下文（Artifacts/Step Summary）
+1. 增加 case 波动 TopN 的可配置尺寸（CLI/CI `topN` 参数）并补齐回归测试
 
 ## 风险
 
