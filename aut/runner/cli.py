@@ -52,6 +52,13 @@ def _positive_float(raw_value: str) -> float:
     return value
 
 
+def _fraction_between_zero_and_one(raw_value: str) -> float:
+    value = float(raw_value)
+    if value < 0 or value > 1:
+        raise argparse.ArgumentTypeError("must be between 0 and 1")
+    return value
+
+
 def _collect_new_replay_files(replay_dir: Path, existing: set[Path]) -> list[Path]:
     if not replay_dir.exists():
         return []
@@ -107,6 +114,7 @@ def _build_case_fluctuation_topn(
     *,
     per_case_stats: dict[str, dict[str, object]],
     top_n: int = 5,
+    min_failure_rate: float = 0.0,
 ) -> dict[str, object]:
     normalized: list[dict[str, object]] = []
     for case_name, stats in per_case_stats.items():
@@ -138,7 +146,8 @@ def _build_case_fluctuation_topn(
     filtered = [
         item
         for item in normalized
-        if int(item["failedRuns"]) > 0 or int(item["plannerFailureTotal"]) > 0
+        if (int(item["failedRuns"]) > 0 or int(item["plannerFailureTotal"]) > 0)
+        and float(item["failureRate"]) >= min_failure_rate
     ]
 
     by_failure_rate = sorted(
@@ -162,6 +171,7 @@ def _build_case_fluctuation_topn(
 
     return {
         "size": min(top_n, len(filtered)),
+        "minFailureRate": min_failure_rate,
         "byFailureRate": by_failure_rate[:top_n],
         "byCategoryDistribution": by_category_distribution[:top_n],
     }
@@ -296,6 +306,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=_positive_int,
         default=5,
         help="TopN size for summary.caseFluctuationTopN views, defaults to 5",
+    )
+    parser.add_argument(
+        "--stability-case-min-failure-rate",
+        type=_fraction_between_zero_and_one,
+        default=0.0,
+        help="Minimum failure rate for including cases in summary.caseFluctuationTopN, defaults to 0",
     )
     parser.add_argument(
         "--case-glob",
@@ -593,6 +609,7 @@ def main(argv: list[str] | None = None) -> int:
                 "caseFluctuationTopN": _build_case_fluctuation_topn(
                     per_case_stats=case_stability_stats,
                     top_n=args.stability_case_topn,
+                    min_failure_rate=args.stability_case_min_failure_rate,
                 ),
             },
             "plannerFailureTrend": planner_failure_trend,

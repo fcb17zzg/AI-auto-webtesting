@@ -113,6 +113,8 @@
 - 夜间工作流告警脚本增强：输出 TopN 表格与阈值上下文，便于快速定位高波动 case
 - M4-3 第十项完成：新增 case 波动 TopN 可配置尺寸（CLI `--stability-case-topn` + CI `case_fluctuation_topn` 输入）
 - 新增 TopN 尺寸回归测试：覆盖默认行为与 `--stability-case-topn=1` 自定义裁剪
+- M4-3 第十一项完成：新增 case 波动 TopN 最小失败率过滤阈值（CLI `--stability-case-min-failure-rate` + CI `case_fluctuation_min_failure_rate` 输入）
+- 新增失败率阈值回归测试：覆盖 `0.5` 过滤场景与非法阈值参数校验
 
 ## 进行中
 
@@ -120,7 +122,7 @@
 
 ## 下一步
 
-1. 为 case 波动 TopN 增加最小失败率过滤阈值（避免低波动样本进入 TopN）
+1. 为 case 波动 TopN 增加按 plannerFailure 总量的最小过滤阈值（避免低影响样本进入 TopN）
 
 ## 风险
 
