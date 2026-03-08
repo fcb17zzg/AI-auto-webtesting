@@ -11,6 +11,7 @@
 - M4-3 进行中：稳定性回归新增 planner 失败分类统计与趋势输出（按 run index 聚合）
 - M4-3 进行中：`--run-stability` 已纳入 CI 夜间任务并固化告警阈值（连续通过/通过率/planner 失败数）
 - M4-3 进行中：已提供 `model-stub/real-model` 规划器切换开关与 HTTP 接口契约文档（`docs/browser_use_planner_contract.md`）
+- M4-3 进行中：稳定性回归已补充 plannerFailure case 级维度（`summary.plannerFailureStats.byCase` + case trend）
 
 ## 已完成
 
@@ -103,6 +104,7 @@
 - 固化夜间告警阈值：`STABILITY_RUNS=10`、`STABILITY_MIN_CONSECUTIVE_PASS=10`、`STABILITY_MIN_PASS_RATE=0.95`、`STABILITY_MAX_PLANNER_FAILURES=0`
 - M4-3 第五项完成：CLI 新增 `--browser-use-planner/--browser-use-model/--browser-use-planner-endpoint/--browser-use-planner-api-key`，支持从 `model-stub` 切换到 `real-model`
 - 补充规划器接口契约文档：定义 real-model 请求/响应结构、降级状态与错误语义（`docs/browser_use_planner_contract.md`）
+- M4-3 第六项完成：`--run-stability` 改为按 case 执行并输出 case 级 plannerFailure 聚合（`summary.plannerFailureStats.byCase`）与趋势（`plannerFailureTrend[*].case`）
 
 ## 进行中
 
@@ -110,8 +112,8 @@
 
 ## 下一步
 
-1. 为 plannerFailure 分类补充 case 级维度（定位高波动用例）
-2. 增补 real-model 规划器鉴权与超时重试策略（生产参数建议）
+1. 增补 real-model 规划器鉴权与超时重试策略（生产参数建议）
+2. 在稳定性报告中增加 case 波动 TopN 视图（按失败率/类别分布排序）
 
 ## 风险
 

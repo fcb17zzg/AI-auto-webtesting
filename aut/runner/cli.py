@@ -74,6 +74,17 @@ def _collect_planner_failure_categories(stdout: str, stderr: str) -> list[str]:
     return categories
 
 
+def _ordered_unique(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        ordered.append(value)
+    return ordered
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Render AUT case execution plan")
     parser.add_argument("--case", help="Relative path under cases/ or absolute path")
@@ -322,6 +333,7 @@ def main(argv: list[str] | None = None) -> int:
         return completed.returncode
 
     if args.run_stability:
+        case_root = Path(args.case_root).resolve()
         selected_cases = discover_case_files(
             case_root=args.case_root,
             case_glob=args.case_glob,
@@ -336,17 +348,70 @@ def main(argv: list[str] | None = None) -> int:
         consecutive_pass = 0
         max_consecutive_pass = 0
         planner_failure_counts: dict[str, int] = {}
+        planner_failure_by_case: dict[str, dict[str, object]] = {}
         planner_failure_trend: list[dict[str, object]] = []
 
         for run_index in range(1, args.stability_runs + 1):
-            completed = run_cases_with_pytest(
-                case_root=args.case_root,
-                replay_dir=args.replay_dir,
-                case_glob=args.case_glob,
-                case_filter=args.case_filter,
-                pytest_args=args.pytest_arg,
-            )
-            passed = completed.returncode == 0
+            run_case_results: list[dict[str, object]] = []
+            run_failed = False
+            run_planner_categories: list[str] = []
+
+            for case_path in selected_cases:
+                case_relative = case_path.relative_to(case_root).as_posix()
+                completed = run_cases_with_pytest(
+                    case_root=args.case_root,
+                    replay_dir=args.replay_dir,
+                    case_glob=args.case_glob,
+                    case_filter=args.case_filter,
+                    case_paths=[case_path],
+                    pytest_args=args.pytest_arg,
+                )
+                passed = completed.returncode == 0
+                if not passed:
+                    run_failed = True
+
+                planner_failure_categories = _collect_planner_failure_categories(
+                    completed.stdout,
+                    completed.stderr,
+                )
+                if planner_failure_categories:
+                    run_planner_categories.extend(planner_failure_categories)
+                    case_stats = planner_failure_by_case.setdefault(
+                        case_relative,
+                        {
+                            "total": 0,
+                            "byCategory": {},
+                        },
+                    )
+                    case_stats["total"] = int(case_stats["total"]) + len(planner_failure_categories)
+                    category_counts = case_stats["byCategory"]
+                    if isinstance(category_counts, dict):
+                        for category in planner_failure_categories:
+                            planner_failure_counts[category] = (
+                                planner_failure_counts.get(category, 0) + 1
+                            )
+                            category_counts[category] = int(category_counts.get(category, 0)) + 1
+                    planner_failure_trend.append(
+                        {
+                            "index": run_index,
+                            "case": case_relative,
+                            "exit_code": completed.returncode,
+                            "categories": planner_failure_categories,
+                        }
+                    )
+
+                run_case_results.append(
+                    {
+                        "case": case_relative,
+                        "exit_code": completed.returncode,
+                        "passed": passed,
+                        "plannerFailureCategories": planner_failure_categories,
+                        "stdout": completed.stdout,
+                        "stderr": completed.stderr,
+                    }
+                )
+
+            passed = not run_failed
             if passed:
                 pass_count += 1
                 consecutive_pass += 1
@@ -355,29 +420,13 @@ def main(argv: list[str] | None = None) -> int:
                 fail_count += 1
                 consecutive_pass = 0
 
-            planner_failure_categories = _collect_planner_failure_categories(
-                completed.stdout,
-                completed.stderr,
-            )
-            if planner_failure_categories:
-                for category in planner_failure_categories:
-                    planner_failure_counts[category] = planner_failure_counts.get(category, 0) + 1
-                planner_failure_trend.append(
-                    {
-                        "index": run_index,
-                        "exit_code": completed.returncode,
-                        "categories": planner_failure_categories,
-                    }
-                )
-
             run_results.append(
                 {
                     "index": run_index,
-                    "exit_code": completed.returncode,
+                    "exit_code": 0 if passed else 1,
                     "passed": passed,
-                    "plannerFailureCategories": planner_failure_categories,
-                    "stdout": completed.stdout,
-                    "stderr": completed.stderr,
+                    "plannerFailureCategories": _ordered_unique(run_planner_categories),
+                    "caseResults": run_case_results,
                 }
             )
 
@@ -387,7 +436,7 @@ def main(argv: list[str] | None = None) -> int:
             "scheduler": "pytest-stability",
             "case_root": str(Path(args.case_root).resolve()),
             "selected_cases": [
-                str(path.relative_to(Path(args.case_root).resolve())) for path in selected_cases
+                path.relative_to(case_root).as_posix() for path in selected_cases
             ],
             "runs": args.stability_runs,
             "results": run_results,
@@ -399,6 +448,7 @@ def main(argv: list[str] | None = None) -> int:
                 "plannerFailureStats": {
                     "total": sum(planner_failure_counts.values()),
                     "byCategory": planner_failure_counts,
+                    "byCase": planner_failure_by_case,
                 },
             },
             "plannerFailureTrend": planner_failure_trend,

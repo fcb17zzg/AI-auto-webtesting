@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -41,6 +42,7 @@ def test_run_cases_with_pytest_invokes_subprocess(monkeypatch, tmp_path: Path) -
         replay_dir=tmp_path / "replays",
         case_glob="product/*.yaml",
         case_filter="vpc",
+        case_paths=[tmp_path / "cases" / "product" / "create_vpc.yaml"],
         pytest_args=["-k", "create_vpc"],
     )
 
@@ -54,3 +56,5 @@ def test_run_cases_with_pytest_invokes_subprocess(monkeypatch, tmp_path: Path) -
     assert env["AUT_ENABLE_CASE_SCHEDULER"] == "1"
     assert env["AUT_CASE_GLOB"] == "product/*.yaml"
     assert env["AUT_CASE_FILTER"] == "vpc"
+    assert "AUT_CASE_PATHS" in env
+    assert json.loads(env["AUT_CASE_PATHS"])[0].endswith("create_vpc.yaml")

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from json import dumps
 from pathlib import Path
 
 
@@ -34,6 +35,7 @@ def run_cases_with_pytest(
     replay_dir: str | Path,
     case_glob: str = "**/*.yaml",
     case_filter: str = "",
+    case_paths: list[str | Path] | None = None,
     pytest_args: list[str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     root = Path(case_root).resolve()
@@ -45,6 +47,9 @@ def run_cases_with_pytest(
     env["AUT_CASE_GLOB"] = case_glob
     env["AUT_CASE_FILTER"] = case_filter
     env["AUT_REPLAY_DIR"] = str(replay_path)
+    if case_paths:
+        normalized = [str(Path(path).resolve()) for path in case_paths]
+        env["AUT_CASE_PATHS"] = dumps(normalized, ensure_ascii=False)
 
     command = [
         sys.executable,

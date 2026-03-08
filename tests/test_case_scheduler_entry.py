@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from json import loads
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -29,6 +30,11 @@ def _resolve_replay_dir() -> Path:
 
 
 def _selected_cases() -> list[Path]:
+    explicit_cases = os.getenv("AUT_CASE_PATHS", "").strip()
+    if explicit_cases:
+        decoded = loads(explicit_cases)
+        return [Path(item).resolve() for item in decoded]
+
     root = _resolve_case_root()
     case_glob = os.getenv("AUT_CASE_GLOB", "**/*.yaml")
     case_filter = os.getenv("AUT_CASE_FILTER", "")

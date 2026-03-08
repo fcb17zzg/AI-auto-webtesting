@@ -135,7 +135,8 @@ python -m aut.runner.cli --run-stability --case-root cases --case-filter playwri
 - `summary.passCount/failCount/passRate`
 - `summary.maxConsecutivePass`
 - `summary.plannerFailureStats.total/byCategory`（planner 失败分类统计）
-- `plannerFailureTrend`（按 run index 输出 planner 失败类别趋势）
+- `summary.plannerFailureStats.byCase`（按 case 统计 planner 失败总数与分类）
+- `plannerFailureTrend`（按 run index + case 输出 planner 失败类别趋势）
 - `gate.passed`（门禁是否通过）
 
 CI/夜间任务已纳入稳定性回归：

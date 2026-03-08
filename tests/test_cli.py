@@ -462,9 +462,72 @@ def test_cli_run_stability_mode_outputs_planner_failure_stats_and_trend(
     assert payload["summary"]["plannerFailureStats"]["total"] == 2
     assert payload["summary"]["plannerFailureStats"]["byCategory"]["planner-exception"] == 1
     assert payload["summary"]["plannerFailureStats"]["byCategory"]["unsupported-action"] == 1
+    case_stats = payload["summary"]["plannerFailureStats"]["byCase"]["product/create_vpc.yaml"]
+    assert case_stats["total"] == 2
+    assert case_stats["byCategory"]["planner-exception"] == 1
+    assert case_stats["byCategory"]["unsupported-action"] == 1
     assert len(payload["plannerFailureTrend"]) == 2
+    assert payload["plannerFailureTrend"][0]["case"] == "product/create_vpc.yaml"
     assert payload["results"][0]["plannerFailureCategories"] == ["planner-exception"]
+    assert payload["results"][0]["caseResults"][0]["case"] == "product/create_vpc.yaml"
     assert payload["results"][1]["plannerFailureCategories"] == ["unsupported-action"]
+
+
+def test_cli_run_stability_mode_outputs_case_level_planner_failure_for_multi_cases(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    case_a = project_root / "cases" / "common" / "login.yaml"
+    case_b = project_root / "cases" / "product" / "create_vpc.yaml"
+
+    monkeypatch.setattr(cli, "discover_case_files", lambda **_: [case_a, case_b])
+
+    run_outputs = iter(
+        [
+            subprocess.CompletedProcess(
+                ["pytest"],
+                1,
+                stdout="browser-use plan failed: planner boom",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(["pytest"], 0, stdout="ok", stderr=""),
+            subprocess.CompletedProcess(
+                ["pytest"],
+                1,
+                stdout="unsupported browser-use plan action: hover",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(["pytest"], 1, stdout="generic failure", stderr=""),
+        ]
+    )
+
+    monkeypatch.setattr(cli, "run_cases_with_pytest", lambda **_: next(run_outputs))
+
+    _ = cli.main(
+        [
+            "--run-stability",
+            "--case-root",
+            str(project_root / "cases"),
+            "--replay-dir",
+            str(tmp_path / "replays"),
+            "--stability-runs",
+            "2",
+            "--stability-min-consecutive-pass",
+            "1",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    by_case = payload["summary"]["plannerFailureStats"]["byCase"]
+
+    assert by_case["common/login.yaml"]["total"] == 2
+    assert by_case["common/login.yaml"]["byCategory"]["planner-exception"] == 1
+    assert by_case["common/login.yaml"]["byCategory"]["unsupported-action"] == 1
+    assert "product/create_vpc.yaml" not in by_case
+    assert payload["results"][0]["caseResults"][0]["case"] == "common/login.yaml"
+    assert payload["results"][0]["caseResults"][1]["case"] == "product/create_vpc.yaml"
 
 
 def test_cli_run_stability_rejects_invalid_threshold() -> None:
