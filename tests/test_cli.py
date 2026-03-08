@@ -530,6 +530,85 @@ def test_cli_run_stability_mode_outputs_case_level_planner_failure_for_multi_cas
     assert payload["results"][0]["caseResults"][1]["case"] == "product/create_vpc.yaml"
 
 
+def test_cli_run_stability_mode_outputs_case_fluctuation_topn(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    case_a = project_root / "cases" / "common" / "login.yaml"
+    case_b = project_root / "cases" / "product" / "create_vpc.yaml"
+    case_c = project_root / "cases" / "common" / "playwright_e2e_demo.yaml"
+
+    monkeypatch.setattr(cli, "discover_case_files", lambda **_: [case_a, case_b, case_c])
+
+    # 3 runs * 3 cases, order follows selected case order per run.
+    run_outputs = iter(
+        [
+            subprocess.CompletedProcess(
+                ["pytest"],
+                1,
+                stdout="browser-use plan failed: planner boom",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(
+                ["pytest"],
+                1,
+                stdout="unsupported browser-use plan action: hover",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(["pytest"], 0, stdout="all passed", stderr=""),
+            subprocess.CompletedProcess(["pytest"], 0, stdout="all passed", stderr=""),
+            subprocess.CompletedProcess(
+                ["pytest"],
+                1,
+                stdout="browser-use adapter must return BrowserUsePlan",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(["pytest"], 0, stdout="all passed", stderr=""),
+            subprocess.CompletedProcess(["pytest"], 0, stdout="all passed", stderr=""),
+            subprocess.CompletedProcess(
+                ["pytest"],
+                1,
+                stdout="playwright action execution failed: boom",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(["pytest"], 0, stdout="all passed", stderr=""),
+        ]
+    )
+
+    monkeypatch.setattr(cli, "run_cases_with_pytest", lambda **_: next(run_outputs))
+
+    _ = cli.main(
+        [
+            "--run-stability",
+            "--case-root",
+            str(project_root / "cases"),
+            "--replay-dir",
+            str(tmp_path / "replays"),
+            "--stability-runs",
+            "3",
+            "--stability-min-consecutive-pass",
+            "1",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    topn = payload["summary"]["caseFluctuationTopN"]
+
+    assert topn["size"] == 2
+    assert topn["byFailureRate"][0]["case"] == "product/create_vpc.yaml"
+    assert topn["byFailureRate"][0]["failureRate"] == pytest.approx(1.0)
+    assert topn["byFailureRate"][1]["case"] == "common/login.yaml"
+    assert topn["byFailureRate"][1]["failureRate"] == pytest.approx(1 / 3)
+
+    assert topn["byCategoryDistribution"][0]["case"] == "product/create_vpc.yaml"
+    assert topn["byCategoryDistribution"][0]["plannerFailureCategoryCount"] == 3
+    assert topn["byCategoryDistribution"][0]["categoryDistribution"][0]["category"] == "adapter-contract"
+    assert topn["byCategoryDistribution"][1]["case"] == "common/login.yaml"
+    assert topn["byCategoryDistribution"][1]["plannerFailureCategoryCount"] == 1
+
+
 def test_cli_run_stability_rejects_invalid_threshold() -> None:
     with pytest.raises(SystemExit):
         cli.main(

@@ -107,6 +107,8 @@
 - M4-3 第六项完成：`--run-stability` 改为按 case 执行并输出 case 级 plannerFailure 聚合（`summary.plannerFailureStats.byCase`）与趋势（`plannerFailureTrend[*].case`）
 - M4-3 第七项完成：real-model 规划器补充鉴权 + 超时 + HTTP 重试参数（`--browser-use-planner-timeout-seconds/--browser-use-planner-http-retries/--browser-use-planner-retry-backoff-ms`）
 - 补充 real-model 生产参数建议与重试语义文档：覆盖 `429/5xx/网络抖动` 重试、非重试错误与指数退避策略
+- M4-3 第八项完成：稳定性报告新增 case 波动 TopN 视图（`summary.caseFluctuationTopN.byFailureRate/byCategoryDistribution`）
+- 新增 case 波动 TopN 排序回归测试：覆盖按失败率与按类别分布复杂度的排序结果
 
 ## 进行中
 
@@ -114,7 +116,7 @@
 
 ## 下一步
 
-1. 在稳定性报告中增加 case 波动 TopN 视图（按失败率/类别分布排序）
+1. 将 case 波动 TopN 指标接入夜间 CI 摘要与告警上下文（Artifacts/Step Summary）
 
 ## 风险
 

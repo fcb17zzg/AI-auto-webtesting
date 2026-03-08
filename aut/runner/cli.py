@@ -92,6 +92,81 @@ def _ordered_unique(values: list[str]) -> list[str]:
     return ordered
 
 
+def _sorted_category_distribution(by_category: dict[str, int]) -> list[dict[str, object]]:
+    ranked = sorted(by_category.items(), key=lambda item: (-item[1], item[0]))
+    return [
+        {
+            "category": category,
+            "count": count,
+        }
+        for category, count in ranked
+    ]
+
+
+def _build_case_fluctuation_topn(
+    *,
+    per_case_stats: dict[str, dict[str, object]],
+    top_n: int = 5,
+) -> dict[str, object]:
+    normalized: list[dict[str, object]] = []
+    for case_name, stats in per_case_stats.items():
+        total_runs = int(stats.get("totalRuns", 0))
+        failed_runs = int(stats.get("failedRuns", 0))
+        planner_failure_total = int(stats.get("plannerFailureTotal", 0))
+        raw_categories = stats.get("plannerFailureByCategory", {})
+        planner_failure_by_category: dict[str, int] = {}
+        if isinstance(raw_categories, dict):
+            for category, count in raw_categories.items():
+                planner_failure_by_category[str(category)] = int(count)
+        failure_rate = (failed_runs / total_runs) if total_runs else 0.0
+        category_count = len(planner_failure_by_category)
+
+        normalized.append(
+            {
+                "case": case_name,
+                "totalRuns": total_runs,
+                "failedRuns": failed_runs,
+                "failureRate": failure_rate,
+                "plannerFailureTotal": planner_failure_total,
+                "plannerFailureByCategory": planner_failure_by_category,
+                "plannerFailureCategoryCount": category_count,
+                "categoryDistribution": _sorted_category_distribution(planner_failure_by_category),
+            }
+        )
+
+    # Focus TopN view on cases that have observable instability signals.
+    filtered = [
+        item
+        for item in normalized
+        if int(item["failedRuns"]) > 0 or int(item["plannerFailureTotal"]) > 0
+    ]
+
+    by_failure_rate = sorted(
+        filtered,
+        key=lambda item: (
+            -float(item["failureRate"]),
+            -int(item["failedRuns"]),
+            -int(item["plannerFailureTotal"]),
+            str(item["case"]),
+        ),
+    )
+    by_category_distribution = sorted(
+        filtered,
+        key=lambda item: (
+            -int(item["plannerFailureCategoryCount"]),
+            -int(item["plannerFailureTotal"]),
+            -float(item["failureRate"]),
+            str(item["case"]),
+        ),
+    )
+
+    return {
+        "size": min(top_n, len(filtered)),
+        "byFailureRate": by_failure_rate[:top_n],
+        "byCategoryDistribution": by_category_distribution[:top_n],
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Render AUT case execution plan")
     parser.add_argument("--case", help="Relative path under cases/ or absolute path")
@@ -383,6 +458,7 @@ def main(argv: list[str] | None = None) -> int:
         planner_failure_counts: dict[str, int] = {}
         planner_failure_by_case: dict[str, dict[str, object]] = {}
         planner_failure_trend: list[dict[str, object]] = []
+        case_stability_stats: dict[str, dict[str, object]] = {}
 
         for run_index in range(1, args.stability_runs + 1):
             run_case_results: list[dict[str, object]] = []
@@ -403,6 +479,19 @@ def main(argv: list[str] | None = None) -> int:
                 if not passed:
                     run_failed = True
 
+                case_stability = case_stability_stats.setdefault(
+                    case_relative,
+                    {
+                        "totalRuns": 0,
+                        "failedRuns": 0,
+                        "plannerFailureTotal": 0,
+                        "plannerFailureByCategory": {},
+                    },
+                )
+                case_stability["totalRuns"] = int(case_stability["totalRuns"]) + 1
+                if not passed:
+                    case_stability["failedRuns"] = int(case_stability["failedRuns"]) + 1
+
                 planner_failure_categories = _collect_planner_failure_categories(
                     completed.stdout,
                     completed.stderr,
@@ -419,11 +508,23 @@ def main(argv: list[str] | None = None) -> int:
                     case_stats["total"] = int(case_stats["total"]) + len(planner_failure_categories)
                     category_counts = case_stats["byCategory"]
                     if isinstance(category_counts, dict):
+                        case_stability_category_counts = case_stability["plannerFailureByCategory"]
+                        if not isinstance(case_stability_category_counts, dict):
+                            case_stability_category_counts = {}
+                            case_stability["plannerFailureByCategory"] = (
+                                case_stability_category_counts
+                            )
                         for category in planner_failure_categories:
                             planner_failure_counts[category] = (
                                 planner_failure_counts.get(category, 0) + 1
                             )
                             category_counts[category] = int(category_counts.get(category, 0)) + 1
+                            case_stability["plannerFailureTotal"] = (
+                                int(case_stability["plannerFailureTotal"]) + 1
+                            )
+                            case_stability_category_counts[category] = int(
+                                case_stability_category_counts.get(category, 0)
+                            ) + 1
                     planner_failure_trend.append(
                         {
                             "index": run_index,
@@ -483,6 +584,9 @@ def main(argv: list[str] | None = None) -> int:
                     "byCategory": planner_failure_counts,
                     "byCase": planner_failure_by_case,
                 },
+                "caseFluctuationTopN": _build_case_fluctuation_topn(
+                    per_case_stats=case_stability_stats,
+                ),
             },
             "plannerFailureTrend": planner_failure_trend,
             "gate": {

@@ -153,6 +153,8 @@ python -m aut.runner.cli --run-stability --case-root cases --case-filter playwri
 - `summary.maxConsecutivePass`
 - `summary.plannerFailureStats.total/byCategory`（planner 失败分类统计）
 - `summary.plannerFailureStats.byCase`（按 case 统计 planner 失败总数与分类）
+- `summary.caseFluctuationTopN.byFailureRate`（按 case 失败率排序的波动 TopN）
+- `summary.caseFluctuationTopN.byCategoryDistribution`（按失败类别分布复杂度排序的 TopN）
 - `plannerFailureTrend`（按 run index + case 输出 planner 失败类别趋势）
 - `gate.passed`（门禁是否通过）
 
