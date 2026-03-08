@@ -42,6 +42,16 @@ def test_allure_batch_report_supports_multi_case_and_failure_sample(tmp_path: Pa
                 success=False,
                 message="assertion failed",
                 artifacts={
+                    "execution": {
+                        "source": "browser-use-plan",
+                        "actions": [
+                            {
+                                "action": "click",
+                                "target": "role=button",
+                                "value": "提交",
+                            }
+                        ],
+                    },
                     "assertions": [
                         {
                             "type": "playwright",
@@ -50,7 +60,16 @@ def test_allure_batch_report_supports_multi_case_and_failure_sample(tmp_path: Pa
                             "passed": False,
                             "reason": "forced assertion failure",
                         }
-                    ]
+                    ],
+                    "attachments": [
+                        {
+                            "name": "step-screenshot-fail",
+                            "contentType": "image/png",
+                            "encoding": "base64",
+                            "content": "ZmFrZS1wbmc=",
+                            "metadata": {"policy": "on-failure"},
+                        }
+                    ],
                 },
             )
         ],
@@ -65,3 +84,6 @@ def test_allure_batch_report_supports_multi_case_and_failure_sample(tmp_path: Pa
     assert statuses == ["failed", "passed"]
     failed_result = next(item for item in batch["results"] if item["status"] == "failed")
     assert failed_result["failureContext"]["runId"] == "run-fail"
+    assert failed_result["steps"][0]["executionTrace"]["source"] == "browser-use-plan"
+    assert failed_result["steps"][0]["executionTrace"]["actions"][0]["action"] == "click"
+    assert failed_result["steps"][0]["executionTrace"]["attachments"][0]["name"] == "step-screenshot-fail"

@@ -4,19 +4,18 @@
 
 - 状态：进行中
 - 阶段：M2 已完成（断言系统最小接口），M3 已完成首版（pytest/allure 报告链路）
-- 更新时间：2026-03-08
+执行 M4-1：Allure 映射新增 `steps[*].executionTrace`，支持聚合展示 `execution.actions` 与步骤附件摘要
+新增步骤级动作-附件关联输出：`executionTrace.actions[*].attachmentRefs`（按步骤作用域关联）
+新增报告链路回归测试并通过（`test_allure_mapper/test_allure_report_integration/test_allure_entities/test_cli` 共 21 条）
 
 ## 已完成
 
 - 从文章中抽取架构、流程、模块与实施顺序
-- 确认首期边界：内部 B/S、CLI 优先、4 周 MVP
+2. 执行 M4-2：browser-use 规划失败重试/回退策略开关设计与实现
 - 建立项目目录骨架
 - 创建 `prd.md`
 - 创建 `progress.md`
 - 初始化项目基础代码与示例
-- 完成 DSL 解析、示例用例与测试验证
-- 新增执行抽象：`Driver` 协议、`ExecutionContext`、`StepResult`
-- 新增 `ExecutionEngine` 与 `DryRunDriver`
 - 新增执行引擎单元测试并通过
 - 新增回放结构：`ReplayRecord`、`ReplayStepRecord`、`ReplayStore`
 - CLI 新增 `--run` 与 `--replay-dir`，可执行 dry-run 并落盘 replay 文件
@@ -87,21 +86,24 @@
 - 新增 adapter 单测与 CLI 集成测试（开关注入、降级路径、参数约束）
 - 完成 M4 里程碑拆分与验收标准落地：明确 `M4-1 可观测报告`、`M4-2 规划稳定性`、`M4-3 端到端可靠性` 三阶段目标
 - 为 M4 增加可量化验收口径：报告字段完整性、失败重试回退行为、稳定性回归基线（通过率与波动阈值）
+- 完成 M4-1：Allure 映射新增 `steps[*].executionTrace`，支持聚合展示 `execution.actions` 与步骤附件摘要
+- 新增步骤级动作-附件关联输出：`executionTrace.actions[*].attachmentRefs`（按步骤作用域关联）
+- 新增报告链路回归测试并通过（`test_allure_mapper/test_allure_report_integration/test_allure_entities/test_cli` 共 21 条）
 
 ## 进行中
 
-- 执行 M4-1：browser-use 多动作在报告侧的可视化聚合（execution.actions 与附件关联）
+- 执行 M4-2：browser-use 规划失败重试/回退策略开关设计与实现
 
 ## 下一步
 
-1. 梳理 browser-use 多动作规划在报告侧的可视化展示（execution.actions 与步骤附件关联）
-2. 增加 browser-use 规划失败的重试/回退策略开关（避免单次规划波动导致用例失败）
-3. 建立 M4 稳定性回归脚本与门禁口径（关键样例最少连续 10 次回归）
+1. 增加 browser-use 规划失败的重试/回退策略开关（避免单次规划波动导致用例失败）
+2. 建立 M4 稳定性回归脚本与门禁口径（关键样例最少连续 10 次回归）
+3. 对接模型驱动规划器的最小桩实现（替换 passthrough 适配层）
 
 ## 风险
 
 - browser-use 最小 adapter 已接入，但当前为 passthrough 策略，尚未接入模型驱动规划能力
-- M4 已定义验收口径，但报告聚合与重试策略尚未实现，短期内复杂场景波动风险仍在
+- M4 报告聚合已落地，但重试策略与稳定性门禁尚未实现，复杂场景波动风险仍在
 - 模型与 browser-use 适配还未开始，后续可能影响接口设计
 
 ## 决策记录

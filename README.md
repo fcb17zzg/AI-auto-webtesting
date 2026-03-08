@@ -161,6 +161,13 @@ browser-use 可观测性字段（`StepResult.artifacts.browserUse`）：
 - `task-mapping`：由 DSL task mapping 直接执行
 - `browser-use-plan`：由 browser-use 规划映射后执行
 
+报告可视化聚合字段（`report.allure.steps[*].executionTrace`）：
+
+- `source`：执行来源（`task-mapping` / `browser-use-plan`）
+- `actions`：步骤内动作序列（含 `action/target/value/index`）
+- `attachments`：步骤附件摘要（含 `name/contentType/metadata`）
+- `actions[*].attachmentRefs`：动作关联附件名称列表（步骤级关联）
+
 步骤级可观测性字段（`StepResult.artifacts.observability`）：
 
 - `stepIndex`：步骤序号（从 1 开始）
