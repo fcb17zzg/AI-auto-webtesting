@@ -112,6 +112,8 @@ jobs:
           min_pass_rate = float(os.environ.get("STABILITY_MIN_PASS_RATE", "0.95"))
           max_planner_failures = int(os.environ.get("STABILITY_MAX_PLANNER_FAILURES", "0"))
           expected_min_consecutive = int(os.environ.get("STABILITY_MIN_CONSECUTIVE_PASS", "10"))
+          topn_min_failure_rate = float(fluctuation_topn.get("minFailureRate", 0.0))
+          topn_min_planner_failures = int(fluctuation_topn.get("minPlannerFailureTotal", 0))
 
           pass_rate = float(summary.get("passRate", 0.0))
           max_consecutive = int(summary.get("maxConsecutivePass", 0))
@@ -142,7 +144,9 @@ jobs:
                       "passRate": pass_rate,
                       "maxConsecutivePass": max_consecutive,
                       "plannerFailureTotal": planner_failure_total,
-                        "caseFluctuationTopNSize": int(fluctuation_topn.get("size", 0)),
+                      "caseFluctuationTopNSize": int(fluctuation_topn.get("size", 0)),
+                      "caseFluctuationMinFailureRate": topn_min_failure_rate,
+                      "caseFluctuationMinPlannerFailures": topn_min_planner_failures,
                       "gatePassed": gate_passed,
                       "cliExitCode": cli_exit_code,
                   },
@@ -150,99 +154,103 @@ jobs:
               ),
           )
 
-                  alert_context = {
-                    "summary": {
-                      "passRate": pass_rate,
-                      "maxConsecutivePass": max_consecutive,
-                      "plannerFailureTotal": planner_failure_total,
-                      "gatePassed": gate_passed,
-                      "cliExitCode": cli_exit_code,
-                    },
-                    "thresholds": {
-                      "minPassRate": min_pass_rate,
-                      "minConsecutivePass": expected_min_consecutive,
-                      "maxPlannerFailures": max_planner_failures,
-                    },
-                    "caseFluctuationTopN": {
-                      "size": int(fluctuation_topn.get("size", 0)),
-                      "byFailureRate": top_by_failure_rate,
-                      "byCategoryDistribution": top_by_category,
-                    },
-                    "failures": failures,
-                  }
-                  Path("stability-alert-context.json").write_text(
-                    json.dumps(alert_context, ensure_ascii=False, indent=2),
-                    encoding="utf-8",
-                  )
+          alert_context = {
+              "summary": {
+                  "passRate": pass_rate,
+                  "maxConsecutivePass": max_consecutive,
+                  "plannerFailureTotal": planner_failure_total,
+                  "gatePassed": gate_passed,
+                  "cliExitCode": cli_exit_code,
+              },
+              "thresholds": {
+                  "minPassRate": min_pass_rate,
+                  "minConsecutivePass": expected_min_consecutive,
+                  "maxPlannerFailures": max_planner_failures,
+              },
+              "caseFluctuationTopN": {
+                  "size": int(fluctuation_topn.get("size", 0)),
+                  "minFailureRate": topn_min_failure_rate,
+                  "minPlannerFailureTotal": topn_min_planner_failures,
+                  "byFailureRate": top_by_failure_rate,
+                  "byCategoryDistribution": top_by_category,
+              },
+              "failures": failures,
+          }
+          Path("stability-alert-context.json").write_text(
+              json.dumps(alert_context, ensure_ascii=False, indent=2),
+              encoding="utf-8",
+          )
 
-                  step_summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
-                  if step_summary_path:
-                    def _fmt_percent(value: float) -> str:
-                      return f"{value * 100:.2f}%"
+          step_summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+          if step_summary_path:
+              def _fmt_percent(value: float) -> str:
+                  return f"{value * 100:.2f}%"
 
-                    summary_lines = [
-                      "## Stability Nightly Summary",
-                      "",
-                      f"- Gate Passed: `{gate_passed}`",
-                      f"- CLI Exit Code: `{cli_exit_code}`",
-                      f"- Pass Rate: `{_fmt_percent(pass_rate)}` (threshold `{_fmt_percent(min_pass_rate)}`)",
-                      f"- Max Consecutive Pass: `{max_consecutive}` (threshold `{expected_min_consecutive}`)",
-                      f"- Planner Failure Total: `{planner_failure_total}` (threshold `{max_planner_failures}`)",
-                      "",
-                      "### Case Fluctuation TopN by Failure Rate",
-                      "| Case | Failure Rate | Failed Runs | Total Runs | Planner Failure Total |",
-                      "| --- | ---: | ---: | ---: | ---: |",
-                    ]
-                    if top_by_failure_rate:
-                      for item in top_by_failure_rate:
-                        summary_lines.append(
+              summary_lines = [
+                  "## Stability Nightly Summary",
+                  "",
+                  f"- Gate Passed: `{gate_passed}`",
+                  f"- CLI Exit Code: `{cli_exit_code}`",
+                  f"- Pass Rate: `{_fmt_percent(pass_rate)}` (threshold `{_fmt_percent(min_pass_rate)}`)",
+                  f"- Max Consecutive Pass: `{max_consecutive}` (threshold `{expected_min_consecutive}`)",
+                  f"- Planner Failure Total: `{planner_failure_total}` (threshold `{max_planner_failures}`)",
+                  f"- Case Fluctuation Min Failure Rate: `{_fmt_percent(topn_min_failure_rate)}`",
+                  f"- Case Fluctuation Min Planner Failures: `{topn_min_planner_failures}`",
+                  "",
+                  "### Case Fluctuation TopN by Failure Rate",
+                  "| Case | Failure Rate | Failed Runs | Total Runs | Planner Failure Total |",
+                  "| --- | ---: | ---: | ---: | ---: |",
+              ]
+              if top_by_failure_rate:
+                  for item in top_by_failure_rate:
+                      summary_lines.append(
                           "| {case} | {failure_rate} | {failed_runs} | {total_runs} | {planner_total} |".format(
-                            case=item.get("case", ""),
-                            failure_rate=_fmt_percent(float(item.get("failureRate", 0.0))),
-                            failed_runs=int(item.get("failedRuns", 0)),
-                            total_runs=int(item.get("totalRuns", 0)),
-                            planner_total=int(item.get("plannerFailureTotal", 0)),
+                              case=item.get("case", ""),
+                              failure_rate=_fmt_percent(float(item.get("failureRate", 0.0))),
+                              failed_runs=int(item.get("failedRuns", 0)),
+                              total_runs=int(item.get("totalRuns", 0)),
+                              planner_total=int(item.get("plannerFailureTotal", 0)),
                           )
-                        )
-                    else:
-                      summary_lines.append("| - | - | - | - | - |")
+                      )
+              else:
+                  summary_lines.append("| - | - | - | - | - |")
 
-                    summary_lines.extend(
-                      [
-                        "",
-                        "### Case Fluctuation TopN by Category Distribution",
-                        "| Case | Category Count | Planner Failure Total | Top Categories |",
-                        "| --- | ---: | ---: | --- |",
-                      ]
-                    )
-                    if top_by_category:
-                      for item in top_by_category:
-                        distribution = item.get("categoryDistribution", [])
-                        category_preview = []
-                        if isinstance(distribution, list):
+              summary_lines.extend(
+                  [
+                      "",
+                      "### Case Fluctuation TopN by Category Distribution",
+                      "| Case | Category Count | Planner Failure Total | Top Categories |",
+                      "| --- | ---: | ---: | --- |",
+                  ]
+              )
+              if top_by_category:
+                  for item in top_by_category:
+                      distribution = item.get("categoryDistribution", [])
+                      category_preview = []
+                      if isinstance(distribution, list):
                           for category_item in distribution[:3]:
-                            if isinstance(category_item, dict):
-                              category_preview.append(
-                                f"{category_item.get('category', '')}:{int(category_item.get('count', 0))}"
-                              )
-                        summary_lines.append(
+                              if isinstance(category_item, dict):
+                                  category_preview.append(
+                                      f"{category_item.get('category', '')}:{int(category_item.get('count', 0))}"
+                                  )
+                      summary_lines.append(
                           "| {case} | {category_count} | {planner_total} | {preview} |".format(
-                            case=item.get("case", ""),
-                            category_count=int(item.get("plannerFailureCategoryCount", 0)),
-                            planner_total=int(item.get("plannerFailureTotal", 0)),
-                            preview=", ".join(category_preview) if category_preview else "-",
+                              case=item.get("case", ""),
+                              category_count=int(item.get("plannerFailureCategoryCount", 0)),
+                              planner_total=int(item.get("plannerFailureTotal", 0)),
+                              preview=", ".join(category_preview) if category_preview else "-",
                           )
-                        )
-                    else:
-                      summary_lines.append("| - | - | - | - |")
+                      )
+              else:
+                  summary_lines.append("| - | - | - | - |")
 
-                    if failures:
-                      summary_lines.extend(["", "### Alert Failures"])
-                      for item in failures:
-                        summary_lines.append(f"- {item}")
+              if failures:
+                  summary_lines.extend(["", "### Alert Failures"])
+                  for item in failures:
+                      summary_lines.append(f"- {item}")
 
-                    with open(step_summary_path, "a", encoding="utf-8") as handle:
-                      handle.write("\n".join(summary_lines) + "\n")
+              with open(step_summary_path, "a", encoding="utf-8") as handle:
+                  handle.write("\n".join(summary_lines) + "\n")
 
           if failures:
               for item in failures:

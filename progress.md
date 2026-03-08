@@ -117,6 +117,8 @@
 - 新增失败率阈值回归测试：覆盖 `0.5` 过滤场景与非法阈值参数校验
 - M4-3 第十二项完成：新增 case 波动 TopN 最小 plannerFailure 总量过滤阈值（CLI `--stability-case-min-planner-failures` + CI `case_fluctuation_min_planner_failures` 输入）
 - 新增 plannerFailure 总量阈值回归测试：覆盖 `minPlannerFailureTotal=2` 过滤场景与非法参数校验
+- M4-3 第十三项完成：夜间 CI Step Summary 新增 TopN 过滤阈值展示（`minFailureRate/minPlannerFailureTotal`）
+- 同步 PRD 当前任务清单：将已落地的浏览器执行、模型适配与 pytest/allure 报告能力标记为首版完成
 
 ## 进行中
 
@@ -124,7 +126,7 @@
 
 ## 下一步
 
-1. 在夜间 CI Step Summary 中展示 TopN 过滤阈值（`minFailureRate/minPlannerFailureTotal`）以提升排障可读性
+1. 补充 `--run-stability` 的阈值组合示例（README/CI 手动触发参数）并增加回归校验用例
 
 ## 风险
 
