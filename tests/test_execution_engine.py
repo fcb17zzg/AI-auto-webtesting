@@ -119,7 +119,7 @@ def test_execution_engine_stops_when_assertion_failed() -> None:
 def test_playwright_bridge_driver_marks_dependency_missing_when_unavailable(
     monkeypatch,
 ) -> None:
-    step = ResolvedStep(task="step-1", source=Path("demo.yaml"))
+    step = ResolvedStep(task='打开 "http://example.com"', source=Path("demo.yaml"))
     context = ExecutionContext(case_name="demo", run_id="run-004")
     driver = PlaywrightBridgeDriver()
     monkeypatch.setattr(driver, "_is_playwright_available", lambda: False)
@@ -129,12 +129,14 @@ def test_playwright_bridge_driver_marks_dependency_missing_when_unavailable(
     assert result.success is False
     assert "not installed" in result.message
     assert result.artifacts["integration"] == "dependency-missing"
+    assert result.artifacts["mapping"]["supported"] is True
+    assert result.artifacts["mapping"]["action"]["action"] == "goto"
 
 
 def test_playwright_bridge_driver_reports_entrypoint_ready_when_dependency_present(
     monkeypatch,
 ) -> None:
-    step = ResolvedStep(task="step-1", source=Path("demo.yaml"))
+    step = ResolvedStep(task="点击“登录”按钮", source=Path("demo.yaml"))
     context = ExecutionContext(case_name="demo", run_id="run-005")
     driver = PlaywrightBridgeDriver()
     monkeypatch.setattr(driver, "_is_playwright_available", lambda: True)
@@ -142,5 +144,24 @@ def test_playwright_bridge_driver_reports_entrypoint_ready_when_dependency_prese
     result = driver.execute_step(step, context)
 
     assert result.success is False
-    assert "bridge is wired" in result.message
+    assert "mapped task" in result.message
     assert result.artifacts["integration"] == "entrypoint-ready"
+    assert result.artifacts["mapping"]["supported"] is True
+    assert result.artifacts["mapping"]["action"]["action"] == "click"
+
+
+def test_playwright_bridge_driver_returns_mapping_unsupported_for_unknown_task(
+    monkeypatch,
+) -> None:
+    step = ResolvedStep(task="等待 3 秒", source=Path("demo.yaml"))
+    context = ExecutionContext(case_name="demo", run_id="run-006")
+    driver = PlaywrightBridgeDriver()
+    monkeypatch.setattr(driver, "_is_playwright_available", lambda: True)
+
+    result = driver.execute_step(step, context)
+
+    assert result.success is False
+    assert "cannot map" in result.message
+    assert result.artifacts["integration"] == "entrypoint-ready"
+    assert result.artifacts["mapping"]["supported"] is False
+    assert result.artifacts["mapping"]["action"] is None

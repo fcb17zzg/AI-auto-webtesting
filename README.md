@@ -86,4 +86,12 @@ python -m aut.runner.cli --run-pytest --case-root cases --case-filter vpc --repl
 
 ## 当前说明
 
-当前 `playwright` 驱动为桥接模式：用于验证依赖探测与接入点连通性，尚未把 DSL `task` 映射为真实浏览器动作。默认 `dry-run` 仍用于稳定主链路。
+当前 `playwright` 驱动为桥接模式：用于验证依赖探测、任务映射策略与接入点连通性，尚未执行真实浏览器动作。默认 `dry-run` 仍用于稳定主链路。
+
+当前 task mapping 首版支持：
+
+- `打开 "URL"` -> `goto`
+- `点击“按钮文案”按钮` -> `click`
+- `在“输入框文案”输入框输入“值”` -> `fill`
+
+对于未覆盖的 task 模式，桥接驱动会在 `artifacts.mapping.supported` 返回 `false`，用于后续补齐映射规则。

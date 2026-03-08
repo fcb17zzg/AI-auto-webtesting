@@ -39,16 +39,19 @@
 - 新增 Allure 实体落盘与 CLI 输出测试并通过（当前总计 26 条测试）
 - 调度链路 `--run-pytest` 接入 `--allure-results-dir`，可按新 replay 批量落盘 Allure 文件
 - 新增调度链路 Allure 批量落盘测试并通过（当前总计 27 条测试）
+- 新增 Playwright 任务映射策略首版：支持“打开 URL / 点击按钮 / 输入框输入”三类 DSL task 解析
+- Playwright 桥接驱动接入 task mapping 元数据输出（supported/action），支持识别未覆盖任务模式
+- 新增 Playwright task mapper 与桥接驱动映射单测并通过（当前总计 32 条测试）
 
 ## 进行中
 
-- 规划 Playwright 任务映射策略（DSL task -> 浏览器动作）
+- 接入真实 Playwright 断言执行器（替换占位断言实现）
 
 ## 下一步
 
-1. 规划 Playwright 任务映射策略（DSL task -> 浏览器动作）
-2. 接入真实 Playwright 断言执行器（替换占位断言实现）
-3. 增加断言失败截图与附件采集策略
+1. 接入真实 Playwright 断言执行器（替换占位断言实现）
+2. 增加断言失败截图与附件采集策略
+3. 将 task mapping 动作计划接入真实 Playwright 浏览器执行链路
 
 ## 风险
 
