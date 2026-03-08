@@ -57,6 +57,49 @@ def test_execution_engine_records_assertion_artifacts_when_passed() -> None:
     assert results[0].artifacts["assertions"][0]["passed"] is True
 
 
+def test_execution_engine_adds_observability_fields_by_default() -> None:
+    case = ResolvedCase(
+        name="demo",
+        path=Path("demo.yaml"),
+        description="",
+        steps=[ResolvedStep(task="step-1", source=Path("demo.yaml"))],
+    )
+    context = ExecutionContext(case_name="demo", run_id="run-ob-001")
+    engine = ExecutionEngine(DryRunDriver())
+
+    results = engine.run_case(case, context)
+
+    observability = results[0].artifacts["observability"]
+    assert observability["stepIndex"] == 1
+    assert "startedAt" in observability
+    assert "finishedAt" in observability
+    assert observability["durationMs"] >= 0
+    assert observability["capture"]["stepScreenshotPolicy"] == "never"
+    assert observability["capture"]["stepLogEnabled"] is False
+
+
+def test_execution_engine_records_step_logs_when_enabled() -> None:
+    case = ResolvedCase(
+        name="demo",
+        path=Path("demo.yaml"),
+        description="",
+        steps=[ResolvedStep(task="step-1", source=Path("demo.yaml"))],
+    )
+    context = ExecutionContext(
+        case_name="demo",
+        run_id="run-ob-002",
+        variables={"aut.capture.stepLog": True},
+    )
+    engine = ExecutionEngine(DryRunDriver())
+
+    results = engine.run_case(case, context)
+
+    logs = results[0].artifacts["observability"]["logs"]
+    assert len(logs) == 1
+    assert logs[0]["level"] == "info"
+    assert "step[1]" in logs[0]["message"]
+
+
 class FailOnSecondStepDriver(Driver):
     def execute_step(self, step: ResolvedStep, context: ExecutionContext) -> StepResult:
         if step.task == "step-2":
@@ -497,6 +540,146 @@ def test_playwright_bridge_driver_includes_browser_use_plan_when_adapter_present
     assert result.artifacts["browserUse"]["planned"] is True
     assert result.artifacts["browserUse"]["plan"]["action"] == "goto"
     assert result.artifacts["browserUse"]["plan"]["metadata"]["task"] == "点击“登录”按钮"
+    assert sorted(result.artifacts["browserUse"]["whitelist"]) == ["click", "fill", "goto"]
+    assert result.artifacts["browserUse"]["requestedAction"] == "goto"
+    assert result.artifacts["browserUse"]["whitelistDecision"] == "allowed"
+    assert result.artifacts["browserUse"]["plannedActionCount"] == 1
+    assert len(result.artifacts["execution"]["actions"]) == 1
+
+
+def test_playwright_bridge_driver_executes_browser_use_multi_action_plan(
+    monkeypatch,
+) -> None:
+    class _FakeLabelLocator:
+        def __init__(self, calls: list[str], label: str):
+            self.calls = calls
+            self.label = label
+
+        def fill(self, value: str):
+            self.calls.append(f"fill:{self.label}:{value}")
+
+    class _FakeRoleLocator:
+        def __init__(self, calls: list[str], name: str):
+            self.calls = calls
+            self.name = name
+
+        def click(self):
+            self.calls.append(f"click:{self.name}")
+
+    class _FakePage:
+        def __init__(self):
+            self.calls: list[str] = []
+
+        def get_by_label(self, label, exact=True):
+            _ = exact
+            return _FakeLabelLocator(self.calls, label)
+
+        def get_by_role(self, role, name, **kwargs):
+            _ = role, kwargs
+            return _FakeRoleLocator(self.calls, name)
+
+    class _Adapter:
+        def plan(self, *, task, mapped_action, context):
+            _ = task, mapped_action, context
+            return BrowserUsePlan(
+                action="fill",
+                target="用户名",
+                value="tester",
+                metadata={
+                    "actions": [
+                        {"action": "fill", "target": "用户名", "value": "tester"},
+                        {
+                            "action": "click",
+                            "target": "role=button",
+                            "value": "登录",
+                            "options": {"exact": True},
+                        },
+                    ]
+                },
+            )
+
+    step = ResolvedStep(task="点击“登录”按钮", source=Path("demo.yaml"))
+    context = ExecutionContext(case_name="demo", run_id="run-008-multi")
+    context.variables[BROWSER_USE_ADAPTER_KEY] = _Adapter()
+
+    driver = PlaywrightBridgeDriver()
+    fake_page = _FakePage()
+    monkeypatch.setattr(driver, "_is_playwright_available", lambda: True)
+    monkeypatch.setattr(driver, "_create_runtime_page", lambda _: fake_page)
+
+    result = driver.execute_step(step, context)
+
+    assert result.success is True
+    assert fake_page.calls == ["fill:用户名:tester", "click:登录"]
+    assert result.artifacts["execution"]["source"] == "browser-use-plan"
+    assert len(result.artifacts["execution"]["actions"]) == 2
+    assert result.artifacts["execution"]["action"]["action"] == "click"
+    assert result.artifacts["browserUse"]["plannedActionCount"] == 2
+
+
+def test_playwright_bridge_driver_fails_when_browser_use_multi_action_contains_unsupported_action(
+    monkeypatch,
+) -> None:
+    class _Adapter:
+        def plan(self, *, task, mapped_action, context):
+            _ = task, mapped_action, context
+            return BrowserUsePlan(
+                action="fill",
+                target="用户名",
+                value="tester",
+                metadata={
+                    "actions": [
+                        {"action": "fill", "target": "用户名", "value": "tester"},
+                        {"action": "hover", "target": "#submit", "value": ""},
+                    ]
+                },
+            )
+
+    step = ResolvedStep(task="点击“登录”按钮", source=Path("demo.yaml"))
+    context = ExecutionContext(case_name="demo", run_id="run-008-unsupported")
+    context.variables[BROWSER_USE_ADAPTER_KEY] = _Adapter()
+
+    driver = PlaywrightBridgeDriver()
+    monkeypatch.setattr(driver, "_is_playwright_available", lambda: True)
+
+    result = driver.execute_step(step, context)
+
+    assert result.success is False
+    assert "unsupported browser-use plan action" in result.message
+    assert result.artifacts["integration"] == "browser-use-plan-failed"
+    assert result.artifacts["browserUse"]["whitelistDecision"] == "rejected"
+
+
+def test_playwright_bridge_driver_captures_step_screenshot_when_policy_always(
+    monkeypatch,
+) -> None:
+    class _FakePage:
+        def goto(self, url):
+            _ = url
+
+        def screenshot(self, full_page=True):
+            _ = full_page
+            return b"fake-step-png"
+
+    step = ResolvedStep(task='打开 "http://example.com"', source=Path("demo.yaml"))
+    context = ExecutionContext(
+        case_name="demo",
+        run_id="run-010-screenshot",
+        variables={"aut.capture.stepScreenshot": "always"},
+    )
+
+    driver = PlaywrightBridgeDriver()
+    monkeypatch.setattr(driver, "_is_playwright_available", lambda: True)
+    monkeypatch.setattr(driver, "_create_runtime_page", lambda _: _FakePage())
+
+    result = driver.execute_step(step, context)
+
+    assert result.success is True
+    attachments = result.artifacts["attachments"]
+    assert len(attachments) == 1
+    assert attachments[0]["contentType"] == "image/png"
+    assert attachments[0]["metadata"]["policy"] == "always"
+    assert result.artifacts["observability"]["screenshot"]["captured"] is True
 
 
 def test_playwright_bridge_driver_returns_failed_when_browser_use_plan_throws(
@@ -521,6 +704,8 @@ def test_playwright_bridge_driver_returns_failed_when_browser_use_plan_throws(
     assert result.artifacts["integration"] == "browser-use-plan-failed"
     assert result.artifacts["browserUse"]["enabled"] is True
     assert result.artifacts["browserUse"]["planned"] is False
+    assert sorted(result.artifacts["browserUse"]["whitelist"]) == ["click", "fill", "goto"]
+    assert result.artifacts["browserUse"]["whitelistDecision"] == "rejected"
 
 
 def test_playwright_bridge_driver_returns_failed_when_browser_use_plan_action_unsupported(
@@ -543,6 +728,8 @@ def test_playwright_bridge_driver_returns_failed_when_browser_use_plan_action_un
     assert result.success is False
     assert "unsupported browser-use plan action" in result.message
     assert result.artifacts["integration"] == "browser-use-plan-failed"
+    assert sorted(result.artifacts["browserUse"]["whitelist"]) == ["click", "fill", "goto"]
+    assert result.artifacts["browserUse"]["whitelistDecision"] == "rejected"
 
 
 def test_playwright_bridge_driver_close_releases_runtime_resources() -> None:

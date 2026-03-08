@@ -391,6 +391,56 @@ def test_cli_run_with_playwright_driver_uses_playwright_assertion_executor(
     assert captured_executor_types == [_FakeExecutor]
 
 
+def test_cli_run_injects_step_capture_switches_into_context(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    captured_variables: dict[str, object] = {}
+
+    class _FakeEngine:
+        def __init__(self, driver, assertion_executor=None):
+            _ = driver, assertion_executor
+
+        def run_case(self, case, context):
+            _ = case
+            captured_variables.update(context.variables)
+            return [StepResult(task="demo", success=True, message="ok")]
+
+    monkeypatch.setattr(cli, "ExecutionEngine", _FakeEngine)
+
+    exit_code = cli.main(
+        [
+            "--case",
+            "product/create_vpc.yaml",
+            "--case-root",
+            str(project_root / "cases"),
+            "--replay-dir",
+            str(tmp_path / "replays"),
+            "--run",
+            "--capture-step-screenshot",
+            "on-failure",
+            "--capture-step-log",
+            "--var",
+            "ASCM_URL=http://example.com",
+            "--var",
+            "USERNAME=tester",
+            "--var",
+            "PASSWORD=secret",
+            "--var",
+            "DEFAULT_ORG_ID=org-1",
+            "--var",
+            "VPC_NAME_UNIQUE=vpc-001",
+        ]
+    )
+
+    _ = capsys.readouterr()
+    assert exit_code == 0
+    assert captured_variables["aut.capture.stepScreenshot"] == "on-failure"
+    assert captured_variables["aut.capture.stepLog"] is True
+
+
 def test_cli_playwright_e2e_sample_writes_png_attachment_and_allure_outputs(
     monkeypatch,
     tmp_path: Path,

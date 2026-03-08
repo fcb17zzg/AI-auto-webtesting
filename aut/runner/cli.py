@@ -58,6 +58,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Driver backend for --run mode, defaults to dry-run",
     )
     parser.add_argument(
+        "--capture-step-screenshot",
+        choices=["never", "on-failure", "always"],
+        default="never",
+        help="Optional step screenshot capture policy for --run mode",
+    )
+    parser.add_argument(
+        "--capture-step-log",
+        action="store_true",
+        help="Enable step-level log capture metadata for --run mode",
+    )
+    parser.add_argument(
         "--replay-dir",
         default=str(Path.cwd() / ".aut" / "replays"),
         help="Replay output directory, defaults to ./.aut/replays",
@@ -120,6 +131,10 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--case is required unless --run-pytest is used")
 
     variables = parse_vars(args.var)
+    if args.run:
+        variables["aut.capture.stepScreenshot"] = args.capture_step_screenshot
+        variables["aut.capture.stepLog"] = args.capture_step_log
+
     if args.run_pytest:
         replay_dir = Path(args.replay_dir).resolve()
         existing_replays = set()

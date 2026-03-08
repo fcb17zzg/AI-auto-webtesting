@@ -45,12 +45,20 @@ python -m aut.runner.cli --case cases/product/create_vpc.yaml --var ASCM_URL=htt
 可选参数：
 
 - `--driver`：执行驱动选择，当前支持 `dry-run`（默认）与 `playwright`（真实动作执行）
+- `--capture-step-screenshot`：步骤截图采集策略（`never` / `on-failure` / `always`，默认 `never`）
+- `--capture-step-log`：开启步骤级日志观测字段（默认关闭）
 - `--allure-results-dir`：当启用 `--run` 时，额外落盘 Allure 实体文件（`*-result.json`、`*-container.json`、附件）
 
 示例（Playwright 真实动作执行）：
 
 ```bash
 python -m aut.runner.cli --case cases/product/create_vpc.yaml --run --driver playwright --replay-dir .aut/replays --var ASCM_URL=http://example.com --var USERNAME=tester --var PASSWORD=secret --var DEFAULT_ORG_ID=org-1 --var VPC_NAME_UNIQUE=vpc-demo
+```
+
+示例（启用步骤截图与日志观测）：
+
+```bash
+python -m aut.runner.cli --case cases/common/playwright_e2e_demo.yaml --run --driver playwright --capture-step-screenshot on-failure --capture-step-log --replay-dir .aut/replays --allure-results-dir .aut/allure-results
 ```
 
 示例（dry-run + Allure 实体落盘）：
@@ -107,6 +115,45 @@ python -m aut.runner.cli --case cases/common/playwright_e2e_demo.yaml --run --dr
 ## 当前说明
 
 当前 `playwright` 驱动已接入真实动作执行链路：可在 runtime page 可用时执行 `goto/click/fill`，并将执行结果写入 replay 与报告链路。执行结束后会自动释放 runtime `page/context/browser` 资源。默认 `dry-run` 仍用于稳定主链路。
+
+browser-use 规划动作白名单（当前版本）：
+
+- `goto`
+- `click`
+- `fill`
+
+当 `ExecutionContext.variables["browser_use.adapter"]` 提供规划器时，驱动会优先尝试执行 browser-use 规划；若规划动作不在白名单内，将返回 `browser-use-plan-failed`，并回传失败上下文用于排障。
+
+browser-use 可观测性字段（`StepResult.artifacts.browserUse`）：
+
+- `enabled`：是否启用 browser-use 规划挂点
+- `planned`：是否成功产出可执行规划
+- `plan`：规划详情（`action/target/value/metadata`）
+- `whitelist`：当前允许执行的动作清单
+- `requestedAction`：规划器请求的动作（标准化为小写）
+- `whitelistDecision`：白名单判定（`allowed` / `rejected` / `not-planned`）
+- `plannedActionCount`：最终被接受并将执行的动作数量
+
+复杂任务拆分协议（browser-use -> 多动作执行）：
+
+- 单动作模式：沿用 `BrowserUsePlan` 顶层 `action/target/value` 字段
+- 多动作模式：在 `BrowserUsePlan.metadata.actions` 传入动作数组，每个元素形如 `{action, target, value, options?}`
+- 驱动会逐个动作按顺序执行，并在 `StepResult.artifacts.execution.actions` 输出完整执行计划
+- `StepResult.artifacts.execution.action` 保留为“最后一个已执行动作”，便于兼容既有消费者
+
+执行来源字段（`StepResult.artifacts.execution.source`）：
+
+- `task-mapping`：由 DSL task mapping 直接执行
+- `browser-use-plan`：由 browser-use 规划映射后执行
+
+步骤级可观测性字段（`StepResult.artifacts.observability`）：
+
+- `stepIndex`：步骤序号（从 1 开始）
+- `startedAt` / `finishedAt` / `durationMs`：执行时间线
+- `capture.stepScreenshotPolicy`：当前截图策略快照
+- `capture.stepLogEnabled`：当前日志采集开关
+- `logs`：当启用 `--capture-step-log` 时写入的步骤日志数组
+- `screenshot`：当触发步骤截图采集时的执行结果（是否成功、策略、失败原因等）
 
 当前 task mapping 首版支持：
 

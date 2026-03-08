@@ -71,16 +71,25 @@
 - 扩展 Playwright task mapping：新增“下拉框选择 / 等待秒数 / 文本可见断言”三类 DSL 任务模式
 - Playwright 驱动新增 `select_option/wait/assert_text_visible` 执行动作，统一纳入 replay 与失败分支
 - 新增 task mapper 与驱动动作回归测试并通过（全量回归通过）
+- 固化 browser-use 规划动作白名单常量（`goto/click/fill`），并在驱动产物中新增白名单观测字段
+- 补充 browser-use 可观测性：`browserUse.whitelist/requestedAction/whitelistDecision` 与 `execution.source` 文档说明
+- 新增白名单与可观测性回归断言并通过（相关回归：`27 passed`）
+- 新增 browser-use 多动作执行协议：支持通过 `BrowserUsePlan.metadata.actions` 传入动作序列并按顺序执行
+- 扩展执行可观测性：新增 `browserUse.plannedActionCount` 与 `execution.actions`，兼容保留 `execution.action` 字段
+- 新增多动作协议成功/失败分支测试并通过（相关回归：`30 passed`）
+- 新增步骤级可观测性字段：`observability.stepIndex/startedAt/finishedAt/durationMs` 与 `capture` 配置快照
+- 新增可选观测开关：CLI `--capture-step-screenshot`（`never/on-failure/always`）与 `--capture-step-log`
+- Playwright 驱动新增步骤截图采集策略（按开关写入 replay 附件）；新增 CLI/执行引擎/驱动回归测试并通过（相关回归：`45 passed`）
 
 ## 进行中
 
-- 增补 browser-use 规划动作白名单与可观测性文档
+- 梳理下一阶段（M4）目标与优先级
 
 ## 下一步
 
-1. 增补 browser-use 规划动作白名单与可观测性文档
-2. 设计并验证“复杂任务拆分为多动作计划”的执行协议
-3. 为关键步骤补充可选截图/日志采集开关与回放可观测字段
+1. 扩展 browser-use 规划动作白名单（与现有 `select_option/wait/assert_text_visible` 执行能力对齐）
+2. 引入真实 browser-use adapter 的最小实现（含依赖探测、降级与集成测试）
+3. 规划 M4 里程碑与验收标准（复杂任务稳定性、可观测性覆盖、报告聚合）
 
 ## 风险
 
