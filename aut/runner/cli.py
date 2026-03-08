@@ -7,7 +7,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from aut.dsl import CaseParser
-from aut.reporting import map_replay_files_to_allure_batch, map_replay_record_to_allure
+from aut.reporting import (
+    map_replay_files_to_allure_batch,
+    map_replay_record_to_allure,
+    write_allure_entities,
+)
 from aut.replay import ReplayStore, build_replay_record
 from aut.runner import (
     DryRunDriver,
@@ -55,6 +59,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--replay-dir",
         default=str(Path.cwd() / ".aut" / "replays"),
         help="Replay output directory, defaults to ./.aut/replays",
+    )
+    parser.add_argument(
+        "--allure-results-dir",
+        default="",
+        help="Optional allure-results output directory for --run mode",
     )
     parser.add_argument(
         "--run-pytest",
@@ -197,6 +206,13 @@ def main(argv: list[str] | None = None) -> int:
         payload["report"] = {
             "allure": allure_preview,
         }
+        if args.allure_results_dir:
+            outputs = write_allure_entities(replay_record, args.allure_results_dir)
+            payload["report"]["allureFiles"] = {
+                "result": str(outputs["resultFile"]),
+                "container": str(outputs["containerFile"]),
+                "attachments": [str(path) for path in outputs["attachmentFiles"]],
+            }
 
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0

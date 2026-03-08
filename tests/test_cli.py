@@ -157,6 +157,59 @@ def test_cli_run_with_playwright_driver_marks_case_failed_when_dependency_missin
     assert replay_payload["driver"] == "playwright"
 
 
+def test_cli_run_writes_allure_result_container_and_attachment_files(tmp_path: Path) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    replay_dir = tmp_path / "replays"
+    allure_dir = tmp_path / "allure-results"
+    case_root = tmp_path / "cases"
+    case_root.mkdir(parents=True, exist_ok=True)
+    case_path = case_root / "assert_fail.yaml"
+    case_path.write_text(
+        "\n".join(
+            [
+                "testName: assertion_fail_demo",
+                "testSteps:",
+                "  - task: 打开页面",
+                "    expected:",
+                "      - type: playwright",
+                "        locator: get_by_text(\"失败\")",
+                "        method: force_fail()",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    command = [
+        sys.executable,
+        "-m",
+        "aut.runner.cli",
+        "--case",
+        str(case_path),
+        "--case-root",
+        str(case_root),
+        "--replay-dir",
+        str(replay_dir),
+        "--allure-results-dir",
+        str(allure_dir),
+        "--run",
+    ]
+
+    completed = subprocess.run(
+        command,
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    payload = json.loads(completed.stdout)
+    allure_files = payload["report"]["allureFiles"]
+
+    assert Path(allure_files["result"]).exists()
+    assert Path(allure_files["container"]).exists()
+    assert len(allure_files["attachments"]) == 1
+    assert Path(allure_files["attachments"][0]).exists()
+
+
 def test_cli_requires_case_when_not_run_pytest() -> None:
     with pytest.raises(SystemExit):
         cli.main([])

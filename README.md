@@ -45,11 +45,18 @@ python -m aut.runner.cli --case cases/product/create_vpc.yaml --var ASCM_URL=htt
 可选参数：
 
 - `--driver`：执行驱动选择，当前支持 `dry-run`（默认）与 `playwright`（桥接接入点评估）
+- `--allure-results-dir`：当启用 `--run` 时，额外落盘 Allure 实体文件（`*-result.json`、`*-container.json`、附件）
 
 示例（Playwright 桥接接入点评估）：
 
 ```bash
 python -m aut.runner.cli --case cases/product/create_vpc.yaml --run --driver playwright --replay-dir .aut/replays --var ASCM_URL=http://example.com --var USERNAME=tester --var PASSWORD=secret --var DEFAULT_ORG_ID=org-1 --var VPC_NAME_UNIQUE=vpc-demo
+```
+
+示例（dry-run + Allure 实体落盘）：
+
+```bash
+python -m aut.runner.cli --case cases/product/create_vpc.yaml --run --allure-results-dir .aut/allure-results --replay-dir .aut/replays --var ASCM_URL=http://example.com --var USERNAME=tester --var PASSWORD=secret --var DEFAULT_ORG_ID=org-1 --var VPC_NAME_UNIQUE=vpc-demo
 ```
 
 ## 运行测试
