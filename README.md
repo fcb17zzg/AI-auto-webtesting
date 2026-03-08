@@ -40,11 +40,25 @@ pip install -e .
 python -m aut.runner.cli --case cases/product/create_vpc.yaml --var ASCM_URL=http://example.com --var DEFAULT_ORG_ID=default-org --var VPC_NAME_UNIQUE=vpc-demo
 ```
 
+当使用 `--run` 执行时，输出中会包含 `report.allure` 字段，用于承载步骤、断言与失败上下文的最小映射。
+
 ## 运行测试
 
 ```bash
 pytest
 ```
+
+## 批量调度 YAML 用例（pytest 入口）
+
+```bash
+python -m aut.runner.cli --run-pytest --case-root cases --case-filter vpc --replay-dir .aut/replays
+```
+
+可选参数：
+
+- `--case-glob`：按 glob 匹配 YAML（默认 `**/*.yaml`）
+- `--case-filter`：按用例路径/文件名包含匹配
+- `--pytest-arg`：透传 pytest 参数（可重复）
 
 ## 当前说明
 

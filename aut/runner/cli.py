@@ -2,17 +2,25 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
 from aut.dsl import CaseParser
+from aut.reporting import map_replay_record_to_allure
 from aut.replay import ReplayStore, build_replay_record
-from aut.runner import DryRunDriver, ExecutionContext, ExecutionEngine
+from aut.runner import (
+    DryRunDriver,
+    ExecutionContext,
+    ExecutionEngine,
+    discover_case_files,
+    run_cases_with_pytest,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Render AUT case execution plan")
-    parser.add_argument("--case", required=True, help="Relative path under cases/ or absolute path")
+    parser.add_argument("--case", help="Relative path under cases/ or absolute path")
     parser.add_argument(
         "--case-root",
         default=str(Path.cwd() / "cases"),
@@ -34,6 +42,27 @@ def build_parser() -> argparse.ArgumentParser:
         default=str(Path.cwd() / ".aut" / "replays"),
         help="Replay output directory, defaults to ./.aut/replays",
     )
+    parser.add_argument(
+        "--run-pytest",
+        action="store_true",
+        help="Run selected YAML cases through pytest scheduler entry",
+    )
+    parser.add_argument(
+        "--case-glob",
+        default="**/*.yaml",
+        help="Glob pattern for selecting cases in case-root, defaults to **/*.yaml",
+    )
+    parser.add_argument(
+        "--case-filter",
+        default="",
+        help="Case name/path contains filter for batch selection",
+    )
+    parser.add_argument(
+        "--pytest-arg",
+        action="append",
+        default=[],
+        help="Extra argument passed to pytest when using --run-pytest",
+    )
     return parser
 
 
@@ -47,13 +76,49 @@ def parse_vars(raw_vars: list[str]) -> dict[str, str]:
     return variables
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+
+    if args.run and args.run_pytest:
+        parser.error("--run and --run-pytest cannot be used together")
+
+    if not args.run_pytest and not args.case:
+        parser.error("--case is required unless --run-pytest is used")
+
     variables = parse_vars(args.var)
+    if args.run_pytest:
+        selected_cases = discover_case_files(
+            case_root=args.case_root,
+            case_glob=args.case_glob,
+            case_filter=args.case_filter,
+        )
+        if not selected_cases:
+            raise ValueError("No cases matched current selection")
+
+        completed = run_cases_with_pytest(
+            case_root=args.case_root,
+            replay_dir=args.replay_dir,
+            case_glob=args.case_glob,
+            case_filter=args.case_filter,
+            pytest_args=args.pytest_arg,
+        )
+        payload = {
+            "scheduler": "pytest",
+            "case_root": str(Path(args.case_root).resolve()),
+            "selected_cases": [
+                str(path.relative_to(Path(args.case_root).resolve())) for path in selected_cases
+            ],
+            "exit_code": completed.returncode,
+            "stdout": completed.stdout,
+            "stderr": completed.stderr,
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return completed.returncode
+
     case_parser = CaseParser(args.case_root)
     resolved_case = case_parser.parse(args.case, variables)
-    plan = {
+    payload = {
         "name": resolved_case.name,
         "description": resolved_case.description,
         "metadata": resolved_case.metadata,
@@ -83,7 +148,8 @@ def main() -> None:
             driver="dry-run",
         )
         replay_file = ReplayStore(args.replay_dir).save(replay_record)
-        plan["execution"] = {
+        allure_preview = map_replay_record_to_allure(replay_record)
+        payload["execution"] = {
             "run_id": run_id,
             "driver": "dry-run",
             "step_count": len(results),
@@ -91,9 +157,13 @@ def main() -> None:
             "failed": any(not item.success for item in results),
             "replay_file": str(replay_file),
         }
+        payload["report"] = {
+            "allure": allure_preview,
+        }
 
-    print(json.dumps(plan, ensure_ascii=False, indent=2))
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

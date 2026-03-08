@@ -4,6 +4,7 @@ from .assertions import PlaceholderAssertionExecutor
 from .contracts import AssertionExecutor, AssertionResult, Driver, ExecutionContext, StepResult
 from .dry_run_driver import DryRunDriver
 from .engine import ExecutionEngine
+from .pytest_scheduler import discover_case_files, run_cases_with_pytest
 
 __all__ = [
 	"Driver",
@@ -14,4 +15,6 @@ __all__ = [
 	"PlaceholderAssertionExecutor",
 	"DryRunDriver",
 	"ExecutionEngine",
+	"discover_case_files",
+	"run_cases_with_pytest",
 ]

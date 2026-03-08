@@ -5,6 +5,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+from aut.runner import cli
+
 
 def test_cli_run_outputs_execution_and_replay_file(tmp_path: Path) -> None:
     project_root = Path(__file__).resolve().parents[1]
@@ -44,6 +48,8 @@ def test_cli_run_outputs_execution_and_replay_file(tmp_path: Path) -> None:
 
     assert payload["name"] == "create_vpc_unique"
     assert "execution" in payload
+    assert "report" in payload
+    assert payload["report"]["allure"]["name"] == "create_vpc_unique"
     assert payload["execution"]["driver"] == "dry-run"
     assert payload["execution"]["step_count"] > 0
 
@@ -99,3 +105,33 @@ def test_cli_run_marks_failed_when_assertion_failed(tmp_path: Path) -> None:
     replay_file = Path(payload["execution"]["replay_file"])
     replay_payload = json.loads(replay_file.read_text(encoding="utf-8"))
     assert replay_payload["steps"][0]["artifacts"]["assertions"][0]["passed"] is False
+
+
+def test_cli_requires_case_when_not_run_pytest() -> None:
+    with pytest.raises(SystemExit):
+        cli.main([])
+
+
+def test_cli_run_pytest_mode_returns_scheduler_exit_code(monkeypatch, tmp_path: Path) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    selected_case = project_root / "cases" / "product" / "create_vpc.yaml"
+
+    monkeypatch.setattr(cli, "discover_case_files", lambda **_: [selected_case])
+
+    fake_result = subprocess.CompletedProcess(["pytest"], 0, stdout="2 passed", stderr="")
+    monkeypatch.setattr(cli, "run_cases_with_pytest", lambda **_: fake_result)
+
+    exit_code = cli.main(
+        [
+            "--run-pytest",
+            "--case-root",
+            str(project_root / "cases"),
+            "--replay-dir",
+            str(tmp_path / "replays"),
+            "--case-filter",
+            "vpc",
+            "--pytest-arg=-k=create_vpc",
+        ]
+    )
+
+    assert exit_code == 0

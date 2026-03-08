@@ -1,0 +1,9 @@
+# Python cache artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Test/cache directories
+.pytest_cache/
+.mypy_cache/
+.aut/
