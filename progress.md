@@ -3,7 +3,7 @@
 ## 当前状态
 
 - 状态：进行中
-- 阶段：M1 项目起步
+- 阶段：M2 已完成（断言系统最小接口），进入 M3 准备（pytest/allure 报告链路）
 - 更新时间：2026-03-08
 
 ## 已完成
@@ -21,21 +21,25 @@
 - 新增回放结构：`ReplayRecord`、`ReplayStepRecord`、`ReplayStore`
 - CLI 新增 `--run` 与 `--replay-dir`，可执行 dry-run 并落盘 replay 文件
 - 新增回放与 CLI 集成测试并通过（当前总计 7 条测试）
+- 新增最小断言链路：`AssertionExecutor` 协议、`PlaceholderAssertionExecutor` 占位实现
+- `ExecutionEngine` 串联步骤断言执行，断言失败可中断后续步骤
+- 断言结果写入 `StepResult.artifacts.assertions` 并随 replay 落盘
+- 新增断言相关单测与 CLI 集成测试并通过（当前总计 10 条测试）
 
 ## 进行中
 
-- 按“一个功能一个验证”节奏推进下一功能（断言系统最小接口）
+- 按“一个功能一个验证”节奏推进下一功能（pytest/allure 报告链路）
 
 ## 下一步
 
-1. 设计并实现最小断言接口（`playwright`/`validator` 先占位）
-2. 在 `ExecutionEngine` 中串联步骤断言执行
-3. 补充失败上下文输出与回放关联字段
-4. 为断言链路补充单元测试与示例 case
+1. 设计 pytest 调度入口（按 case 批量执行与用例筛选）
+2. 规划 allure 报告字段映射（步骤、断言、失败上下文）
+3. 为报告链路补充最小集成测试
+4. 评估真实浏览器驱动接入点（与断言执行器对齐）
 
 ## 风险
 
-- 当前仅完成离线解析与执行计划生成，尚未接入真实浏览器执行
+- 当前断言仍为占位执行器，尚未接入真实 Playwright 断言能力
 - 模型与 browser-use 适配还未开始，后续可能影响接口设计
 
 ## 决策记录

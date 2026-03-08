@@ -25,7 +25,18 @@ def test_replay_store_save_and_load_roundtrip(tmp_path: Path) -> None:
             task="open page",
             success=True,
             message="ok",
-            artifacts={"url": "http://example.com"},
+            artifacts={
+                "url": "http://example.com",
+                "assertions": [
+                    {
+                        "type": "playwright",
+                        "locator": "get_by_text('ok')",
+                        "method": "to_be_visible()",
+                        "passed": True,
+                        "reason": "",
+                    }
+                ],
+            },
         )
     ]
 
@@ -41,6 +52,7 @@ def test_replay_store_save_and_load_roundtrip(tmp_path: Path) -> None:
     assert len(loaded.steps) == 1
     assert loaded.steps[0].task == "open page"
     assert loaded.steps[0].artifacts["url"] == "http://example.com"
+    assert loaded.steps[0].artifacts["assertions"][0]["passed"] is True
 
 
 def test_replay_file_json_shape(tmp_path: Path) -> None:
