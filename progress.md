@@ -8,6 +8,7 @@
 - M4-2 已完成：browser-use 规划失败支持重试与可控回退策略（CLI 开关 + 驱动执行策略）
 - M4-3 进行中：已落地稳定性回归门禁模式（`--run-stability`，支持连续通过阈值判定）
 - M4-3 进行中：已接入模型驱动规划器最小桩（`model-stub`，`stub-rule-v1`）替换 passthrough 适配层
+- M4-3 进行中：稳定性回归新增 planner 失败分类统计与趋势输出（按 run index 聚合）
 
 ## 已完成
 
@@ -95,6 +96,7 @@
 - M4-3 首项完成：CLI 新增 `--run-stability` 稳定性回归模式，支持 `--stability-runs` 与 `--stability-min-consecutive-pass` 门禁
 - 稳定性输出新增汇总口径：`passCount/failCount/passRate/maxConsecutivePass` + `gate.passed`
 - M4-3 第二项完成：browser-use adapter 工厂默认注入 `model-stub` 规划器，规划元数据新增 `planner/actions` 字段
+- M4-3 第三项完成：`--run-stability` 输出新增 `plannerFailureStats` 与 `plannerFailureTrend`，支持按类别统计与趋势跟踪
 
 ## 进行中
 
@@ -102,9 +104,9 @@
 
 ## 下一步
 
-1. 增加 planner 失败分类统计与趋势输出（为门禁提供量化指标）
-2. 将 `--run-stability` 纳入 CI/夜间任务并固化告警阈值
-3. 增补 model-stub 到真实模型规划器的切换开关与接口契约文档
+1. 将 `--run-stability` 纳入 CI/夜间任务并固化告警阈值
+2. 增补 model-stub 到真实模型规划器的切换开关与接口契约文档
+3. 为 plannerFailure 分类补充 case 级维度（定位高波动用例）
 
 ## 风险
 

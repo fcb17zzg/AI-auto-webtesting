@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -49,6 +50,28 @@ def _collect_new_replay_files(replay_dir: Path, existing: set[Path]) -> list[Pat
         return []
     current = {path.resolve() for path in replay_dir.glob("*.json") if path.is_file()}
     return sorted(current - existing)
+
+
+def _collect_planner_failure_categories(stdout: str, stderr: str) -> list[str]:
+    combined = f"{stdout}\n{stderr}".lower()
+    categories: list[str] = []
+
+    if "browser-use plan failed" in combined:
+        categories.append("planner-exception")
+    if "unsupported browser-use plan action" in combined:
+        categories.append("unsupported-action")
+    if "browser-use adapter must return browseruseplan" in combined:
+        categories.append("adapter-contract")
+    if "playwright action execution failed" in combined:
+        categories.append("plan-runtime")
+    if "browser-use-plan-failed" in combined and not categories:
+        categories.append("planner-failed-unknown")
+
+    # A generic fallback for planner-related failures that do not match known patterns.
+    if not categories and re.search(r"browser[\-_ ]use", combined) and "failed" in combined:
+        categories.append("planner-failed-unknown")
+
+    return categories
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -271,6 +294,8 @@ def main(argv: list[str] | None = None) -> int:
         fail_count = 0
         consecutive_pass = 0
         max_consecutive_pass = 0
+        planner_failure_counts: dict[str, int] = {}
+        planner_failure_trend: list[dict[str, object]] = []
 
         for run_index in range(1, args.stability_runs + 1):
             completed = run_cases_with_pytest(
@@ -289,11 +314,27 @@ def main(argv: list[str] | None = None) -> int:
                 fail_count += 1
                 consecutive_pass = 0
 
+            planner_failure_categories = _collect_planner_failure_categories(
+                completed.stdout,
+                completed.stderr,
+            )
+            if planner_failure_categories:
+                for category in planner_failure_categories:
+                    planner_failure_counts[category] = planner_failure_counts.get(category, 0) + 1
+                planner_failure_trend.append(
+                    {
+                        "index": run_index,
+                        "exit_code": completed.returncode,
+                        "categories": planner_failure_categories,
+                    }
+                )
+
             run_results.append(
                 {
                     "index": run_index,
                     "exit_code": completed.returncode,
                     "passed": passed,
+                    "plannerFailureCategories": planner_failure_categories,
                     "stdout": completed.stdout,
                     "stderr": completed.stderr,
                 }
@@ -314,7 +355,12 @@ def main(argv: list[str] | None = None) -> int:
                 "failCount": fail_count,
                 "passRate": pass_rate,
                 "maxConsecutivePass": max_consecutive_pass,
+                "plannerFailureStats": {
+                    "total": sum(planner_failure_counts.values()),
+                    "byCategory": planner_failure_counts,
+                },
             },
+            "plannerFailureTrend": planner_failure_trend,
             "gate": {
                 "type": "min-consecutive-pass",
                 "minConsecutivePass": args.stability_min_consecutive_pass,

@@ -124,6 +124,8 @@ python -m aut.runner.cli --run-stability --case-root cases --case-filter playwri
 
 - `summary.passCount/failCount/passRate`
 - `summary.maxConsecutivePass`
+- `summary.plannerFailureStats.total/byCategory`（planner 失败分类统计）
+- `plannerFailureTrend`（按 run index 输出 planner 失败类别趋势）
 - `gate.passed`（门禁是否通过）
 
 示例（Playwright 端到端样例 + Allure 附件落盘）：

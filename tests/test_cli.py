@@ -413,6 +413,60 @@ def test_cli_run_stability_mode_returns_non_zero_when_gate_failed(
     assert payload["gate"]["passed"] is False
 
 
+def test_cli_run_stability_mode_outputs_planner_failure_stats_and_trend(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    selected_case = project_root / "cases" / "product" / "create_vpc.yaml"
+
+    monkeypatch.setattr(cli, "discover_case_files", lambda **_: [selected_case])
+
+    run_outputs = iter(
+        [
+            subprocess.CompletedProcess(
+                ["pytest"],
+                1,
+                stdout="browser-use plan failed: planner boom",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(
+                ["pytest"],
+                1,
+                stdout="unsupported browser-use plan action: hover",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(["pytest"], 0, stdout="all passed", stderr=""),
+        ]
+    )
+
+    monkeypatch.setattr(cli, "run_cases_with_pytest", lambda **_: next(run_outputs))
+
+    exit_code = cli.main(
+        [
+            "--run-stability",
+            "--case-root",
+            str(project_root / "cases"),
+            "--replay-dir",
+            str(tmp_path / "replays"),
+            "--stability-runs",
+            "3",
+            "--stability-min-consecutive-pass",
+            "1",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["summary"]["plannerFailureStats"]["total"] == 2
+    assert payload["summary"]["plannerFailureStats"]["byCategory"]["planner-exception"] == 1
+    assert payload["summary"]["plannerFailureStats"]["byCategory"]["unsupported-action"] == 1
+    assert len(payload["plannerFailureTrend"]) == 2
+    assert payload["results"][0]["plannerFailureCategories"] == ["planner-exception"]
+    assert payload["results"][1]["plannerFailureCategories"] == ["unsupported-action"]
+
+
 def test_cli_run_stability_rejects_invalid_threshold() -> None:
     with pytest.raises(SystemExit):
         cli.main(
