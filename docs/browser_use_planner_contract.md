@@ -15,6 +15,9 @@ Keep the execution engine and Playwright bridge stable while allowing planner ba
 - `--browser-use-model`: planner model name.
 - `--browser-use-planner-endpoint`: HTTP endpoint for `real-model` planner.
 - `--browser-use-planner-api-key`: optional bearer token for planner endpoint.
+- `--browser-use-planner-timeout-seconds`: HTTP timeout seconds for `real-model` requests.
+- `--browser-use-planner-http-retries`: transient HTTP/network retry count for `real-model`.
+- `--browser-use-planner-retry-backoff-ms`: initial retry backoff in milliseconds (exponential).
 
 ## Request Schema (real-model)
 
@@ -61,6 +64,16 @@ Rules:
 - `metadata` is optional object. Non-object metadata is ignored.
 - Adapter augments metadata with planner identity and fallback action list when missing.
 
+## Retry and Timeout Semantics (real-model)
+
+- Authorization: when `--browser-use-planner-api-key` is set, adapter sends `Authorization: Bearer <token>`.
+- Timeout: each HTTP request uses `--browser-use-planner-timeout-seconds`.
+- Retry: adapter retries transient failures up to `--browser-use-planner-http-retries`.
+- Retryable HTTP status: `408`, `429`, `500`, `502`, `503`, `504`.
+- Retryable network errors: transport-level `URLError` failures.
+- Backoff: exponential, based on `--browser-use-planner-retry-backoff-ms`.
+- Non-retryable HTTP status (e.g. `400`) fails immediately.
+
 ## Fallback and Status
 
 Factory status is always injected into `ExecutionContext.variables["browser_use.status"]`.
@@ -82,3 +95,10 @@ The adapter raises runtime errors on:
 - response body not JSON object
 
 These errors are surfaced by the existing browser-use retry/fallback mechanism (`--browser-use-plan-retry`, `--browser-use-plan-fallback`).
+
+Recommended production baseline:
+
+- `--browser-use-planner-timeout-seconds 20`
+- `--browser-use-planner-http-retries 2`
+- `--browser-use-planner-retry-backoff-ms 300`
+- `--browser-use-plan-retry 1`

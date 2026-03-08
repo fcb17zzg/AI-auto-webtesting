@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import asdict
 from dataclasses import dataclass, field
 from importlib.util import find_spec
@@ -122,11 +123,25 @@ class BrowserUseRealModelAdapter:
         model: str,
         api_key: str = "",
         timeout_seconds: float = 15.0,
+        max_retries: int = 0,
+        retry_backoff_seconds: float = 0.2,
     ) -> None:
         self._endpoint = endpoint
         self._model = model
         self._api_key = api_key
-        self._timeout_seconds = timeout_seconds
+        self._timeout_seconds = timeout_seconds if timeout_seconds > 0 else 15.0
+        self._max_retries = max(0, int(max_retries))
+        self._retry_backoff_seconds = (
+            retry_backoff_seconds if retry_backoff_seconds >= 0 else 0.0
+        )
+
+    def _should_retry_http_status(self, status_code: int) -> bool:
+        return status_code in {408, 429, 500, 502, 503, 504}
+
+    def _sleep_before_retry(self, attempt: int) -> None:
+        delay_seconds = self._retry_backoff_seconds * (2**attempt)
+        if delay_seconds > 0:
+            time.sleep(delay_seconds)
 
     def _normalize_response(self, payload: dict[str, Any]) -> BrowserUsePlannerResponse:
         return BrowserUsePlannerResponse(
@@ -137,32 +152,52 @@ class BrowserUseRealModelAdapter:
         )
 
     def _request_plan(self, request_payload: BrowserUsePlannerRequest) -> BrowserUsePlannerResponse:
-        body = {
-            "model": self._model,
-            "input": asdict(request_payload),
-        }
-        encoded = json.dumps(body, ensure_ascii=False).encode("utf-8")
-        headers = {
-            "Content-Type": "application/json",
-        }
-        if self._api_key:
-            headers["Authorization"] = f"Bearer {self._api_key}"
+        last_error: Exception | None = None
+        for attempt in range(self._max_retries + 1):
+            body = {
+                "model": self._model,
+                "input": asdict(request_payload),
+            }
+            encoded = json.dumps(body, ensure_ascii=False).encode("utf-8")
+            headers = {
+                "Content-Type": "application/json",
+            }
+            if self._api_key:
+                headers["Authorization"] = f"Bearer {self._api_key}"
 
-        http_request = urllib_request.Request(
-            url=self._endpoint,
-            data=encoded,
-            headers=headers,
-            method="POST",
-        )
+            http_request = urllib_request.Request(
+                url=self._endpoint,
+                data=encoded,
+                headers=headers,
+                method="POST",
+            )
 
-        try:
-            with urllib_request.urlopen(http_request, timeout=self._timeout_seconds) as response:
-                raw_text = response.read().decode("utf-8")
-        except urllib_error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="ignore")
-            raise RuntimeError(f"planner http error: status={exc.code}, detail={detail}") from exc
-        except urllib_error.URLError as exc:
-            raise RuntimeError(f"planner network error: {exc.reason}") from exc
+            try:
+                with urllib_request.urlopen(http_request, timeout=self._timeout_seconds) as response:
+                    raw_text = response.read().decode("utf-8")
+                break
+            except urllib_error.HTTPError as exc:
+                detail = exc.read().decode("utf-8", errors="ignore")
+                last_error = RuntimeError(
+                    f"planner http error: status={exc.code}, detail={detail}"
+                )
+                if (
+                    attempt < self._max_retries
+                    and self._should_retry_http_status(exc.code)
+                ):
+                    self._sleep_before_retry(attempt)
+                    continue
+                raise last_error from exc
+            except urllib_error.URLError as exc:
+                last_error = RuntimeError(f"planner network error: {exc.reason}")
+                if attempt < self._max_retries:
+                    self._sleep_before_retry(attempt)
+                    continue
+                raise last_error from exc
+        else:
+            if last_error is not None:
+                raise last_error
+            raise RuntimeError("planner request failed")
 
         try:
             parsed = json.loads(raw_text)
@@ -234,6 +269,9 @@ def create_browser_use_adapter(
     model: str = "stub-rule-v1",
     planner_endpoint: str = "",
     planner_api_key: str = "",
+    planner_timeout_seconds: float = 15.0,
+    planner_http_retries: int = 0,
+    planner_retry_backoff_ms: int = 200,
 ) -> tuple[BrowserUseAdapter | None, dict[str, Any]]:
     """Create browser-use adapter with explicit dependency detection and fallback status."""
     if not enabled:
@@ -272,6 +310,9 @@ def create_browser_use_adapter(
             endpoint=planner_endpoint,
             model=model,
             api_key=planner_api_key,
+            timeout_seconds=planner_timeout_seconds,
+            max_retries=planner_http_retries,
+            retry_backoff_seconds=(planner_retry_backoff_ms / 1000),
         ), {
             "enabled": True,
             "available": True,
@@ -281,6 +322,9 @@ def create_browser_use_adapter(
             "planner": planner,
             "model": model,
             "endpoint": planner_endpoint,
+            "timeoutSeconds": planner_timeout_seconds,
+            "httpRetries": planner_http_retries,
+            "retryBackoffMs": planner_retry_backoff_ms,
         }
 
     return BrowserUseModelStubAdapter(), {

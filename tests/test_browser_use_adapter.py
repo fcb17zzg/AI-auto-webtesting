@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import io
 import json
+from urllib import error as urllib_error
 
 from aut.runner.browser_use_adapter import (
     BrowserUsePlan,
@@ -111,6 +113,31 @@ def test_create_browser_use_adapter_returns_real_model_adapter_when_configured(
     assert status["endpoint"] == "http://planner.example/plan"
 
 
+def test_create_browser_use_adapter_passes_real_model_transport_config(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr("aut.runner.browser_use_adapter.find_spec", lambda _: object())
+
+    adapter, status = create_browser_use_adapter(
+        True,
+        planner="real-model",
+        model="gpt-5.3-codex",
+        planner_endpoint="http://planner.example/plan",
+        planner_api_key="secret-token",
+        planner_timeout_seconds=9.5,
+        planner_http_retries=2,
+        planner_retry_backoff_ms=350,
+    )
+
+    assert isinstance(adapter, BrowserUseRealModelAdapter)
+    assert status["timeoutSeconds"] == 9.5
+    assert status["httpRetries"] == 2
+    assert status["retryBackoffMs"] == 350
+    assert adapter._timeout_seconds == 9.5
+    assert adapter._max_retries == 2
+    assert adapter._retry_backoff_seconds == 0.35
+
+
 def test_real_model_adapter_plan_maps_http_response(monkeypatch) -> None:
     context = ExecutionContext(case_name="demo", run_id="run-001")
     adapter = BrowserUseRealModelAdapter(
@@ -160,6 +187,92 @@ def test_real_model_adapter_plan_maps_http_response(monkeypatch) -> None:
     assert plan.action == "click"
     assert plan.metadata["planner"]["kind"] == "real-model"
     assert plan.metadata["source"] == "browser-use-real-model"
+
+
+def test_real_model_adapter_retries_on_retryable_http_error(monkeypatch) -> None:
+    context = ExecutionContext(case_name="demo", run_id="run-001")
+    adapter = BrowserUseRealModelAdapter(
+        endpoint="http://planner.example/plan",
+        model="gpt-5.3-codex",
+        timeout_seconds=3,
+        max_retries=2,
+        retry_backoff_seconds=0,
+    )
+
+    calls = {"count": 0}
+
+    class _FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            _ = exc_type, exc, tb
+            return None
+
+        def read(self):
+            return b'{"action":"click","target":"role=button","value":""}'
+
+    def _fake_urlopen(request, timeout):
+        _ = request, timeout
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise urllib_error.HTTPError(
+                url="http://planner.example/plan",
+                code=503,
+                msg="service unavailable",
+                hdrs=None,
+                fp=io.BytesIO(b"temporary"),
+            )
+        return _FakeResponse()
+
+    monkeypatch.setattr("aut.runner.browser_use_adapter.urllib_request.urlopen", _fake_urlopen)
+
+    plan = adapter.plan(
+        task="点击登录",
+        mapped_action={"action": "click", "target": "role=button", "value": "登录"},
+        context=context,
+    )
+
+    assert calls["count"] == 2
+    assert plan.action == "click"
+
+
+def test_real_model_adapter_does_not_retry_on_non_retryable_http_error(monkeypatch) -> None:
+    context = ExecutionContext(case_name="demo", run_id="run-001")
+    adapter = BrowserUseRealModelAdapter(
+        endpoint="http://planner.example/plan",
+        model="gpt-5.3-codex",
+        timeout_seconds=3,
+        max_retries=3,
+        retry_backoff_seconds=0,
+    )
+
+    calls = {"count": 0}
+
+    def _fake_urlopen(request, timeout):
+        _ = request, timeout
+        calls["count"] += 1
+        raise urllib_error.HTTPError(
+            url="http://planner.example/plan",
+            code=400,
+            msg="bad request",
+            hdrs=None,
+            fp=io.BytesIO(b"bad input"),
+        )
+
+    monkeypatch.setattr("aut.runner.browser_use_adapter.urllib_request.urlopen", _fake_urlopen)
+
+    try:
+        adapter.plan(
+            task="点击登录",
+            mapped_action={"action": "click", "target": "role=button", "value": "登录"},
+            context=context,
+        )
+        raise AssertionError("expected RuntimeError")
+    except RuntimeError as exc:
+        assert "status=400" in str(exc)
+
+    assert calls["count"] == 1
 
 
 def test_browser_use_plan_to_dict_contains_all_fields() -> None:

@@ -878,6 +878,12 @@ def test_cli_run_passes_browser_use_planner_options_to_factory(
             "http://planner.example/plan",
             "--browser-use-planner-api-key",
             "token-001",
+            "--browser-use-planner-timeout-seconds",
+            "12.5",
+            "--browser-use-planner-http-retries",
+            "3",
+            "--browser-use-planner-retry-backoff-ms",
+            "450",
             "--var",
             "ASCM_URL=http://example.com",
             "--var",
@@ -898,6 +904,9 @@ def test_cli_run_passes_browser_use_planner_options_to_factory(
     assert captured_factory_args["model"] == "gpt-5.3-codex"
     assert captured_factory_args["planner_endpoint"] == "http://planner.example/plan"
     assert captured_factory_args["planner_api_key"] == "token-001"
+    assert captured_factory_args["planner_timeout_seconds"] == 12.5
+    assert captured_factory_args["planner_http_retries"] == 3
+    assert captured_factory_args["planner_retry_backoff_ms"] == 450
 
 
 def test_cli_run_injects_browser_use_plan_strategy_when_configured(

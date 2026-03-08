@@ -105,6 +105,8 @@
 - M4-3 第五项完成：CLI 新增 `--browser-use-planner/--browser-use-model/--browser-use-planner-endpoint/--browser-use-planner-api-key`，支持从 `model-stub` 切换到 `real-model`
 - 补充规划器接口契约文档：定义 real-model 请求/响应结构、降级状态与错误语义（`docs/browser_use_planner_contract.md`）
 - M4-3 第六项完成：`--run-stability` 改为按 case 执行并输出 case 级 plannerFailure 聚合（`summary.plannerFailureStats.byCase`）与趋势（`plannerFailureTrend[*].case`）
+- M4-3 第七项完成：real-model 规划器补充鉴权 + 超时 + HTTP 重试参数（`--browser-use-planner-timeout-seconds/--browser-use-planner-http-retries/--browser-use-planner-retry-backoff-ms`）
+- 补充 real-model 生产参数建议与重试语义文档：覆盖 `429/5xx/网络抖动` 重试、非重试错误与指数退避策略
 
 ## 进行中
 
@@ -112,14 +114,13 @@
 
 ## 下一步
 
-1. 增补 real-model 规划器鉴权与超时重试策略（生产参数建议）
-2. 在稳定性报告中增加 case 波动 TopN 视图（按失败率/类别分布排序）
+1. 在稳定性报告中增加 case 波动 TopN 视图（按失败率/类别分布排序）
 
 ## 风险
 
-- browser-use 最小 adapter 已切换为 model-stub 策略，但尚未接入真实模型推理链路
+- browser-use 已接入 real-model 最小 HTTP 规划链路，但真实生产流量下的稳定性仍待持续验证
 - M4 报告聚合、重试回退与稳定性门禁已落地并接入夜间 CI，但复杂场景波动风险仍需持续观测
-- 模型与 browser-use 适配还未开始，后续可能影响接口设计
+- 模型与 browser-use 已完成 real-model 最小 HTTP 接入，但生产链路效果仍需在稳定性回归中持续观测
 
 ## 决策记录
 

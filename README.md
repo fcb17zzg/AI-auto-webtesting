@@ -52,6 +52,9 @@ python -m aut.runner.cli --case cases/product/create_vpc.yaml --var ASCM_URL=htt
 - `--browser-use-model`：规划模型名称（默认 `stub-rule-v1`）
 - `--browser-use-planner-endpoint`：`real-model` 规划 HTTP 接口地址
 - `--browser-use-planner-api-key`：`real-model` 规划接口可选鉴权 Token
+- `--browser-use-planner-timeout-seconds`：`real-model` 规划接口超时秒数（默认 `15`）
+- `--browser-use-planner-http-retries`：`real-model` 规划接口瞬时失败重试次数（默认 `0`）
+- `--browser-use-planner-retry-backoff-ms`：`real-model` 重试初始退避毫秒（默认 `200`，指数退避）
 - `--browser-use-plan-retry`：browser-use 规划失败重试次数（默认 `0`，需配合 `--enable-browser-use`）
 - `--browser-use-plan-fallback`：重试后仍失败时的回退策略（`fail-fast` / `task-mapping`，默认 `fail-fast`）
 - `--allure-results-dir`：当启用 `--run` 时，额外落盘 Allure 实体文件（`*-result.json`、`*-container.json`、附件）
@@ -85,6 +88,20 @@ python -m aut.runner.cli --case cases/common/playwright_e2e_demo.yaml --run --dr
 ```bash
 python -m aut.runner.cli --case cases/common/playwright_e2e_demo.yaml --run --driver playwright --enable-browser-use --browser-use-planner real-model --browser-use-model gpt-5.3-codex --browser-use-planner-endpoint http://planner.example/plan --browser-use-planner-api-key <token> --replay-dir .aut/replays
 ```
+
+示例（real-model 生产建议参数：鉴权 + 超时 + HTTP 重试）：
+
+```bash
+python -m aut.runner.cli --case cases/common/playwright_e2e_demo.yaml --run --driver playwright --enable-browser-use --browser-use-planner real-model --browser-use-model gpt-5.3-codex --browser-use-planner-endpoint http://planner.example/plan --browser-use-planner-api-key <token> --browser-use-planner-timeout-seconds 20 --browser-use-planner-http-retries 2 --browser-use-planner-retry-backoff-ms 300 --browser-use-plan-retry 1 --browser-use-plan-fallback task-mapping --replay-dir .aut/replays
+```
+
+生产参数建议：
+
+- `--browser-use-planner-api-key`：务必配置，避免匿名调用
+- `--browser-use-planner-timeout-seconds`：建议 `10~30` 秒，内网低延迟可取 `10~15`
+- `--browser-use-planner-http-retries`：建议 `1~2`，用于覆盖 `429/5xx/网络抖动`
+- `--browser-use-planner-retry-backoff-ms`：建议 `200~500`，当前采用指数退避
+- `--browser-use-plan-retry`：规划级重试建议 `0~1`，避免与 HTTP 重试叠加过高导致长尾超时
 
 示例（dry-run + Allure 实体落盘）：
 

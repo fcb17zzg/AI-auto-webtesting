@@ -45,6 +45,13 @@ def _positive_int(raw_value: str) -> int:
     return value
 
 
+def _positive_float(raw_value: str) -> float:
+    value = float(raw_value)
+    if value <= 0:
+        raise argparse.ArgumentTypeError("must be > 0")
+    return value
+
+
 def _collect_new_replay_files(replay_dir: Path, existing: set[Path]) -> list[Path]:
     if not replay_dir.exists():
         return []
@@ -146,6 +153,24 @@ def build_parser() -> argparse.ArgumentParser:
         "--browser-use-planner-api-key",
         default="",
         help="Optional API key for real-model planner endpoint",
+    )
+    parser.add_argument(
+        "--browser-use-planner-timeout-seconds",
+        type=_positive_float,
+        default=15.0,
+        help="HTTP timeout seconds for real-model planner requests, defaults to 15",
+    )
+    parser.add_argument(
+        "--browser-use-planner-http-retries",
+        type=_non_negative_int,
+        default=0,
+        help="Retry count for real-model planner transient HTTP/network failures",
+    )
+    parser.add_argument(
+        "--browser-use-planner-retry-backoff-ms",
+        type=_non_negative_int,
+        default=200,
+        help="Initial backoff in milliseconds for real-model planner retries",
     )
     parser.add_argument(
         "--browser-use-plan-retry",
@@ -253,12 +278,17 @@ def main(argv: list[str] | None = None) -> int:
             or args.browser_use_model != "stub-rule-v1"
             or args.browser_use_planner_endpoint
             or args.browser_use_planner_api_key
+            or args.browser_use_planner_timeout_seconds != 15.0
+            or args.browser_use_planner_http_retries != 0
+            or args.browser_use_planner_retry_backoff_ms != 200
         )
         and not args.enable_browser_use
     ):
         parser.error(
             "--browser-use-planner/--browser-use-model/--browser-use-planner-endpoint/"
-            "--browser-use-planner-api-key require --enable-browser-use"
+            "--browser-use-planner-api-key/--browser-use-planner-timeout-seconds/"
+            "--browser-use-planner-http-retries/--browser-use-planner-retry-backoff-ms "
+            "require --enable-browser-use"
         )
 
     if args.run_stability and args.stability_min_consecutive_pass > args.stability_runs:
@@ -277,6 +307,9 @@ def main(argv: list[str] | None = None) -> int:
             model=args.browser_use_model,
             planner_endpoint=args.browser_use_planner_endpoint,
             planner_api_key=args.browser_use_planner_api_key,
+            planner_timeout_seconds=args.browser_use_planner_timeout_seconds,
+            planner_http_retries=args.browser_use_planner_http_retries,
+            planner_retry_backoff_ms=args.browser_use_planner_retry_backoff_ms,
         )
         variables[BROWSER_USE_STATUS_KEY] = adapter_status
         variables[BROWSER_USE_PLAN_RETRY_KEY] = args.browser_use_plan_retry
