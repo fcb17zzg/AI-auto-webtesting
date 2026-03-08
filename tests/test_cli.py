@@ -280,3 +280,55 @@ def test_cli_run_pytest_mode_includes_allure_batch_report(monkeypatch, tmp_path:
     assert exit_code == 0
     assert payload["report"]["allureBatch"]["summary"]["total"] == 1
     assert payload["report"]["allureBatch"]["results"][0]["name"] == "demo_case"
+
+
+def test_cli_run_pytest_mode_writes_allure_results_batch(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    selected_case = project_root / "cases" / "product" / "create_vpc.yaml"
+    replay_dir = tmp_path / "replays"
+    allure_dir = tmp_path / "allure-results"
+
+    store = ReplayStore(replay_dir)
+    record = ReplayRecord(
+        schema_version="1.0",
+        run_id="run-002",
+        case_name="demo_case_2",
+        case_path="cases/product/demo2.yaml",
+        driver="dry-run",
+        created_at="2026-03-08T00:00:00+00:00",
+        variables={},
+        metadata={},
+        steps=[],
+    )
+
+    def fake_run_cases_with_pytest(**_: object) -> subprocess.CompletedProcess[str]:
+        store.save(record)
+        return subprocess.CompletedProcess(["pytest"], 0, stdout="1 passed", stderr="")
+
+    monkeypatch.setattr(cli, "discover_case_files", lambda **_: [selected_case])
+    monkeypatch.setattr(cli, "run_cases_with_pytest", fake_run_cases_with_pytest)
+
+    exit_code = cli.main(
+        [
+            "--run-pytest",
+            "--case-root",
+            str(project_root / "cases"),
+            "--replay-dir",
+            str(replay_dir),
+            "--allure-results-dir",
+            str(allure_dir),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+
+    assert exit_code == 0
+    batch = payload["report"]["allureResultsBatch"]
+    assert batch["total"] == 1
+    assert Path(batch["files"][0]["result"]).exists()
+    assert Path(batch["files"][0]["container"]).exists()

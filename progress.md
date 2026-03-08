@@ -37,16 +37,18 @@
 - 新增 Allure 实体落盘模块：`result/container/attachment` 文件生成
 - CLI `--run` 新增 `--allure-results-dir`，可输出 `allure-results` 文件集
 - 新增 Allure 实体落盘与 CLI 输出测试并通过（当前总计 26 条测试）
+- 调度链路 `--run-pytest` 接入 `--allure-results-dir`，可按新 replay 批量落盘 Allure 文件
+- 新增调度链路 Allure 批量落盘测试并通过（当前总计 27 条测试）
 
 ## 进行中
 
-- 增加调度链路的 Allure 落盘输出（allure-results 目录）
+- 规划 Playwright 任务映射策略（DSL task -> 浏览器动作）
 
 ## 下一步
 
-1. 增加调度链路的 Allure 落盘输出（allure-results 目录）
-2. 规划 Playwright 任务映射策略（DSL task -> 浏览器动作）
-3. 接入真实 Playwright 断言执行器（替换占位断言实现）
+1. 规划 Playwright 任务映射策略（DSL task -> 浏览器动作）
+2. 接入真实 Playwright 断言执行器（替换占位断言实现）
+3. 增加断言失败截图与附件采集策略
 
 ## 风险
 

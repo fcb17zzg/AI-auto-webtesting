@@ -71,11 +71,18 @@ pytest
 python -m aut.runner.cli --run-pytest --case-root cases --case-filter vpc --replay-dir .aut/replays
 ```
 
+如需同时落盘 Allure 实体文件（`allure-results`）：
+
+```bash
+python -m aut.runner.cli --run-pytest --case-root cases --case-filter vpc --replay-dir .aut/replays --allure-results-dir .aut/allure-results
+```
+
 可选参数：
 
 - `--case-glob`：按 glob 匹配 YAML（默认 `**/*.yaml`）
 - `--case-filter`：按用例路径/文件名包含匹配
 - `--pytest-arg`：透传 pytest 参数（可重复）
+- `--allure-results-dir`：在调度完成后将新生成 replay 批量转换为 Allure `result/container/attachment` 文件
 
 ## 当前说明
 

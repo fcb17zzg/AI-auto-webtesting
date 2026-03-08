@@ -10,6 +10,7 @@ from aut.dsl import CaseParser
 from aut.reporting import (
     map_replay_files_to_allure_batch,
     map_replay_record_to_allure,
+    write_replay_files_to_allure_results,
     write_allure_entities,
 )
 from aut.replay import ReplayStore, build_replay_record
@@ -63,7 +64,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--allure-results-dir",
         default="",
-        help="Optional allure-results output directory for --run mode",
+        help="Optional allure-results output directory for --run and --run-pytest modes",
     )
     parser.add_argument(
         "--run-pytest",
@@ -157,6 +158,11 @@ def main(argv: list[str] | None = None) -> int:
             payload["report"] = {
                 "allureBatch": map_replay_files_to_allure_batch(new_replay_files),
             }
+            if args.allure_results_dir:
+                payload["report"]["allureResultsBatch"] = write_replay_files_to_allure_results(
+                    new_replay_files,
+                    args.allure_results_dir,
+                )
 
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return completed.returncode
