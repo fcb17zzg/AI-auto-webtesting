@@ -505,6 +505,8 @@ def test_cli_run_injects_browser_use_adapter_when_enabled(
     assert exit_code == 0
     assert "browser_use.adapter" in captured_variables
     assert captured_variables["browser_use.status"]["mode"] == "passthrough"
+    assert captured_variables["browser_use.planRetry"] == 0
+    assert captured_variables["browser_use.planFallback"] == "fail-fast"
 
 
 def test_cli_run_sets_browser_use_degraded_status_when_dependency_missing(
@@ -584,6 +586,91 @@ def test_cli_rejects_enable_browser_use_without_playwright_driver() -> None:
                 "--enable-browser-use",
             ]
         )
+
+
+def test_cli_rejects_browser_use_plan_strategy_without_enable_browser_use() -> None:
+    with pytest.raises(SystemExit):
+        cli.main(
+            [
+                "--case",
+                "product/create_vpc.yaml",
+                "--run",
+                "--driver",
+                "playwright",
+                "--browser-use-plan-retry",
+                "1",
+            ]
+        )
+
+
+def test_cli_run_injects_browser_use_plan_strategy_when_configured(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    captured_variables: dict[str, object] = {}
+
+    class _FakeAdapter:
+        pass
+
+    class _FakeEngine:
+        def __init__(self, driver, assertion_executor=None):
+            _ = driver, assertion_executor
+
+        def run_case(self, case, context):
+            _ = case
+            captured_variables.update(context.variables)
+            return [StepResult(task="demo", success=True, message="ok")]
+
+    monkeypatch.setattr(cli, "ExecutionEngine", _FakeEngine)
+    monkeypatch.setattr(
+        cli,
+        "create_browser_use_adapter",
+        lambda enabled: (
+            _FakeAdapter() if enabled else None,
+            {
+                "enabled": bool(enabled),
+                "available": bool(enabled),
+                "mode": "passthrough" if enabled else "disabled",
+                "fallback": "none" if enabled else "task-mapping",
+            },
+        ),
+    )
+
+    exit_code = cli.main(
+        [
+            "--case",
+            "product/create_vpc.yaml",
+            "--case-root",
+            str(project_root / "cases"),
+            "--replay-dir",
+            str(tmp_path / "replays"),
+            "--run",
+            "--driver",
+            "playwright",
+            "--enable-browser-use",
+            "--browser-use-plan-retry",
+            "2",
+            "--browser-use-plan-fallback",
+            "task-mapping",
+            "--var",
+            "ASCM_URL=http://example.com",
+            "--var",
+            "USERNAME=tester",
+            "--var",
+            "PASSWORD=secret",
+            "--var",
+            "DEFAULT_ORG_ID=org-1",
+            "--var",
+            "VPC_NAME_UNIQUE=vpc-001",
+        ]
+    )
+
+    _ = capsys.readouterr()
+    assert exit_code == 0
+    assert captured_variables["browser_use.planRetry"] == 2
+    assert captured_variables["browser_use.planFallback"] == "task-mapping"
 
 
 def test_cli_playwright_e2e_sample_writes_png_attachment_and_allure_outputs(

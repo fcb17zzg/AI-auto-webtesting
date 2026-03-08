@@ -9,7 +9,12 @@ from typing import Any
 from aut.dsl import ResolvedStep
 
 from .assertions import PLAYWRIGHT_PAGE_KEY
-from .browser_use_adapter import BROWSER_USE_ADAPTER_KEY, BrowserUsePlan
+from .browser_use_adapter import (
+    BROWSER_USE_ADAPTER_KEY,
+    BROWSER_USE_PLAN_FALLBACK_KEY,
+    BROWSER_USE_PLAN_RETRY_KEY,
+    BrowserUsePlan,
+)
 from .contracts import Driver, ExecutionContext, StepResult
 from .playwright_task_mapper import PlaywrightTaskMapper
 
@@ -82,48 +87,97 @@ class PlaywrightBridgeDriver(Driver):
             "requestedAction": None,
             "whitelistDecision": "not-planned",
             "plannedActionCount": 1,
+            "retryConfigured": self._resolve_plan_retry_count(context),
+            "attempts": 0,
+            "fallbackPolicy": self._resolve_plan_fallback_policy(context),
+            "fallbackApplied": False,
+            "planErrors": [],
         }
         actions_to_execute = [mapped_action]
-        try:
-            browser_use_plan = self._plan_with_browser_use(step.task, mapped_action, context)
-            if browser_use_plan is not None:
-                actions_to_execute = self._map_browser_use_plan_to_actions(browser_use_plan)
-                browser_use_artifacts = {
-                    "enabled": True,
-                    "planned": True,
-                    "plan": browser_use_plan.to_dict(),
-                    "executionSource": "browser-use-plan",
-                    "whitelist": sorted(BROWSER_USE_PLAN_ACTION_WHITELIST),
-                    "requestedAction": (browser_use_plan.action or "").strip().lower(),
-                    "whitelistDecision": "allowed",
-                    "plannedActionCount": len(actions_to_execute),
-                }
-        except Exception as exc:
-            return self._finalize_step_result(
-                step,
-                context,
-                StepResult(
-                    task=step.task,
-                    success=False,
-                    message=f"browser-use plan failed: {exc}",
-                    artifacts={
-                        "driver": "playwright",
-                        "integration": "browser-use-plan-failed",
-                        "mapping": {
-                            "supported": True,
-                            "action": mapped_action,
-                        },
-                        "browserUse": {
+        should_attempt_planning = context.variables.get(BROWSER_USE_ADAPTER_KEY) is not None
+        if should_attempt_planning:
+            retry_count = self._resolve_plan_retry_count(context)
+            fallback_policy = self._resolve_plan_fallback_policy(context)
+            plan_errors: list[str] = []
+
+            for attempt in range(retry_count + 1):
+                try:
+                    browser_use_plan = self._plan_with_browser_use(step.task, mapped_action, context)
+                    browser_use_artifacts["attempts"] = attempt + 1
+                    if browser_use_plan is None:
+                        break
+                    actions_to_execute = self._map_browser_use_plan_to_actions(browser_use_plan)
+                    browser_use_artifacts = {
+                        "enabled": True,
+                        "planned": True,
+                        "plan": browser_use_plan.to_dict(),
+                        "executionSource": "browser-use-plan",
+                        "whitelist": sorted(BROWSER_USE_PLAN_ACTION_WHITELIST),
+                        "requestedAction": (browser_use_plan.action or "").strip().lower(),
+                        "whitelistDecision": "allowed",
+                        "plannedActionCount": len(actions_to_execute),
+                        "retryConfigured": retry_count,
+                        "attempts": attempt + 1,
+                        "fallbackPolicy": fallback_policy,
+                        "fallbackApplied": False,
+                        "planErrors": plan_errors,
+                    }
+                    break
+                except Exception as exc:
+                    plan_errors.append(str(exc))
+                    browser_use_artifacts["attempts"] = attempt + 1
+                    browser_use_artifacts["planErrors"] = plan_errors
+                    if attempt < retry_count:
+                        continue
+
+                    if fallback_policy == "task-mapping":
+                        browser_use_artifacts = {
                             "enabled": True,
                             "planned": False,
                             "plan": None,
+                            "executionSource": "task-mapping",
                             "whitelist": sorted(BROWSER_USE_PLAN_ACTION_WHITELIST),
                             "requestedAction": None,
                             "whitelistDecision": "rejected",
-                        },
-                    },
-                ),
-            )
+                            "plannedActionCount": len(actions_to_execute),
+                            "retryConfigured": retry_count,
+                            "attempts": attempt + 1,
+                            "fallbackPolicy": fallback_policy,
+                            "fallbackApplied": True,
+                            "planErrors": plan_errors,
+                        }
+                        break
+
+                    return self._finalize_step_result(
+                        step,
+                        context,
+                        StepResult(
+                            task=step.task,
+                            success=False,
+                            message=f"browser-use plan failed: {exc}",
+                            artifacts={
+                                "driver": "playwright",
+                                "integration": "browser-use-plan-failed",
+                                "mapping": {
+                                    "supported": True,
+                                    "action": mapped_action,
+                                },
+                                "browserUse": {
+                                    "enabled": True,
+                                    "planned": False,
+                                    "plan": None,
+                                    "whitelist": sorted(BROWSER_USE_PLAN_ACTION_WHITELIST),
+                                    "requestedAction": None,
+                                    "whitelistDecision": "rejected",
+                                    "retryConfigured": retry_count,
+                                    "attempts": attempt + 1,
+                                    "fallbackPolicy": fallback_policy,
+                                    "fallbackApplied": False,
+                                    "planErrors": plan_errors,
+                                },
+                            },
+                        ),
+                    )
 
         try:
             page = self._ensure_runtime_page(context)
@@ -187,6 +241,21 @@ class PlaywrightBridgeDriver(Driver):
         if not isinstance(plan, BrowserUsePlan):
             raise TypeError("browser-use adapter must return BrowserUsePlan")
         return plan
+
+    def _resolve_plan_retry_count(self, context: ExecutionContext) -> int:
+        raw_value = context.variables.get(BROWSER_USE_PLAN_RETRY_KEY, 0)
+        try:
+            retry_count = int(raw_value)
+        except (TypeError, ValueError):
+            return 0
+        return retry_count if retry_count >= 0 else 0
+
+    def _resolve_plan_fallback_policy(self, context: ExecutionContext) -> str:
+        raw_value = str(context.variables.get(BROWSER_USE_PLAN_FALLBACK_KEY, "fail-fast"))
+        fallback_policy = raw_value.strip().lower()
+        if fallback_policy not in {"fail-fast", "task-mapping"}:
+            return "fail-fast"
+        return fallback_policy
 
     def _map_browser_use_plan_to_actions(self, plan: BrowserUsePlan) -> list[dict[str, Any]]:
         metadata_actions = plan.metadata.get("actions")

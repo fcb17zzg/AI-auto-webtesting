@@ -4,14 +4,12 @@
 
 - 状态：进行中
 - 阶段：M2 已完成（断言系统最小接口），M3 已完成首版（pytest/allure 报告链路）
-执行 M4-1：Allure 映射新增 `steps[*].executionTrace`，支持聚合展示 `execution.actions` 与步骤附件摘要
-新增步骤级动作-附件关联输出：`executionTrace.actions[*].attachmentRefs`（按步骤作用域关联）
-新增报告链路回归测试并通过（`test_allure_mapper/test_allure_report_integration/test_allure_entities/test_cli` 共 21 条）
+- M4-1 已完成：Allure 映射新增 `steps[*].executionTrace` 与 `attachmentRefs` 关联输出
+- M4-2 已完成：browser-use 规划失败支持重试与可控回退策略（CLI 开关 + 驱动执行策略）
 
 ## 已完成
 
 - 从文章中抽取架构、流程、模块与实施顺序
-2. 执行 M4-2：browser-use 规划失败重试/回退策略开关设计与实现
 - 建立项目目录骨架
 - 创建 `prd.md`
 - 创建 `progress.md`
@@ -89,21 +87,24 @@
 - 完成 M4-1：Allure 映射新增 `steps[*].executionTrace`，支持聚合展示 `execution.actions` 与步骤附件摘要
 - 新增步骤级动作-附件关联输出：`executionTrace.actions[*].attachmentRefs`（按步骤作用域关联）
 - 新增报告链路回归测试并通过（`test_allure_mapper/test_allure_report_integration/test_allure_entities/test_cli` 共 21 条）
+- 完成 M4-2：新增 CLI 开关 `--browser-use-plan-retry`、`--browser-use-plan-fallback`，支持规划失败重试与回退策略控制
+- Playwright 驱动新增规划重试执行与回退到 task mapping 分支，补充可观测字段（`retryConfigured/attempts/fallbackPolicy/fallbackApplied/planErrors`）
+- 新增执行引擎与 CLI 回归测试覆盖：重试成功、回退生效、参数注入与参数约束
 
 ## 进行中
 
-- 执行 M4-2：browser-use 规划失败重试/回退策略开关设计与实现
+- 执行 M4-3：端到端可靠性增强与稳定性回归门禁
 
 ## 下一步
 
-1. 增加 browser-use 规划失败的重试/回退策略开关（避免单次规划波动导致用例失败）
-2. 建立 M4 稳定性回归脚本与门禁口径（关键样例最少连续 10 次回归）
-3. 对接模型驱动规划器的最小桩实现（替换 passthrough 适配层）
+1. 建立 M4 稳定性回归脚本与门禁口径（关键样例最少连续 10 次回归）
+2. 对接模型驱动规划器的最小桩实现（替换 passthrough 适配层）
+3. 增加 planner 失败分类统计与趋势输出（为门禁提供量化指标）
 
 ## 风险
 
 - browser-use 最小 adapter 已接入，但当前为 passthrough 策略，尚未接入模型驱动规划能力
-- M4 报告聚合已落地，但重试策略与稳定性门禁尚未实现，复杂场景波动风险仍在
+- M4 报告聚合与重试回退策略已落地，但稳定性门禁尚未实现，复杂场景波动风险仍在
 - 模型与 browser-use 适配还未开始，后续可能影响接口设计
 
 ## 决策记录

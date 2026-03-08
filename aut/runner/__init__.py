@@ -3,6 +3,8 @@
 from .assertions import PLAYWRIGHT_PAGE_KEY, PlaceholderAssertionExecutor, PlaywrightAssertionExecutor
 from .browser_use_adapter import (
 	BROWSER_USE_ADAPTER_KEY,
+	BROWSER_USE_PLAN_FALLBACK_KEY,
+	BROWSER_USE_PLAN_RETRY_KEY,
 	BROWSER_USE_STATUS_KEY,
 	BrowserUseAdapter,
 	BrowserUsePassthroughAdapter,
@@ -27,6 +29,8 @@ __all__ = [
 	"PlaywrightAssertionExecutor",
 	"PLAYWRIGHT_PAGE_KEY",
 	"BROWSER_USE_ADAPTER_KEY",
+	"BROWSER_USE_PLAN_RETRY_KEY",
+	"BROWSER_USE_PLAN_FALLBACK_KEY",
 	"BROWSER_USE_STATUS_KEY",
 	"BrowserUseAdapter",
 	"BrowserUsePassthroughAdapter",

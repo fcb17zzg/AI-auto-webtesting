@@ -2,7 +2,12 @@ from pathlib import Path
 
 from aut.dsl.models import ResolvedCase, ResolvedStep
 from aut.runner import DryRunDriver, ExecutionContext, ExecutionEngine
-from aut.runner.browser_use_adapter import BROWSER_USE_ADAPTER_KEY, BrowserUsePlan
+from aut.runner.browser_use_adapter import (
+    BROWSER_USE_ADAPTER_KEY,
+    BROWSER_USE_PLAN_FALLBACK_KEY,
+    BROWSER_USE_PLAN_RETRY_KEY,
+    BrowserUsePlan,
+)
 from aut.runner.contracts import AssertionResult, AssertionExecutor, Driver, StepResult
 from aut.runner.playwright_bridge_driver import PlaywrightBridgeDriver
 
@@ -768,6 +773,97 @@ def test_playwright_bridge_driver_returns_failed_when_browser_use_plan_throws(
         "wait",
     ]
     assert result.artifacts["browserUse"]["whitelistDecision"] == "rejected"
+
+
+def test_playwright_bridge_driver_falls_back_to_task_mapping_when_plan_fails_and_policy_enabled(
+    monkeypatch,
+) -> None:
+    class _Adapter:
+        def plan(self, *, task, mapped_action, context):
+            _ = task, mapped_action, context
+            raise RuntimeError("planner boom")
+
+    class _FakePage:
+        def __init__(self):
+            self.last_url = ""
+
+        def goto(self, url):
+            self.last_url = url
+
+    step = ResolvedStep(task='打开 "http://example.com"', source=Path("demo.yaml"))
+    context = ExecutionContext(
+        case_name="demo",
+        run_id="run-009-fallback",
+        variables={
+            BROWSER_USE_PLAN_RETRY_KEY: 2,
+            BROWSER_USE_PLAN_FALLBACK_KEY: "task-mapping",
+        },
+    )
+    context.variables[BROWSER_USE_ADAPTER_KEY] = _Adapter()
+
+    driver = PlaywrightBridgeDriver()
+    fake_page = _FakePage()
+    monkeypatch.setattr(driver, "_is_playwright_available", lambda: True)
+    monkeypatch.setattr(driver, "_create_runtime_page", lambda _: fake_page)
+
+    result = driver.execute_step(step, context)
+
+    assert result.success is True
+    assert result.artifacts["execution"]["source"] == "task-mapping"
+    assert fake_page.last_url == "http://example.com"
+    assert result.artifacts["browserUse"]["attempts"] == 3
+    assert result.artifacts["browserUse"]["retryConfigured"] == 2
+    assert result.artifacts["browserUse"]["fallbackPolicy"] == "task-mapping"
+    assert result.artifacts["browserUse"]["fallbackApplied"] is True
+    assert len(result.artifacts["browserUse"]["planErrors"]) == 3
+
+
+def test_playwright_bridge_driver_retries_browser_use_plan_and_succeeds(
+    monkeypatch,
+) -> None:
+    attempts = {"count": 0}
+
+    class _Adapter:
+        def plan(self, *, task, mapped_action, context):
+            _ = task, mapped_action, context
+            attempts["count"] += 1
+            if attempts["count"] < 2:
+                raise RuntimeError("planner transient")
+            return BrowserUsePlan(action="goto", target="http://retry-success.example")
+
+    class _FakePage:
+        def __init__(self):
+            self.last_url = ""
+
+        def goto(self, url):
+            self.last_url = url
+
+    step = ResolvedStep(task='打开 "http://example.com"', source=Path("demo.yaml"))
+    context = ExecutionContext(
+        case_name="demo",
+        run_id="run-009-retry-success",
+        variables={
+            BROWSER_USE_PLAN_RETRY_KEY: 2,
+            BROWSER_USE_PLAN_FALLBACK_KEY: "fail-fast",
+        },
+    )
+    context.variables[BROWSER_USE_ADAPTER_KEY] = _Adapter()
+
+    driver = PlaywrightBridgeDriver()
+    fake_page = _FakePage()
+    monkeypatch.setattr(driver, "_is_playwright_available", lambda: True)
+    monkeypatch.setattr(driver, "_create_runtime_page", lambda _: fake_page)
+
+    result = driver.execute_step(step, context)
+
+    assert result.success is True
+    assert attempts["count"] == 2
+    assert fake_page.last_url == "http://retry-success.example"
+    assert result.artifacts["execution"]["source"] == "browser-use-plan"
+    assert result.artifacts["browserUse"]["attempts"] == 2
+    assert result.artifacts["browserUse"]["retryConfigured"] == 2
+    assert result.artifacts["browserUse"]["fallbackApplied"] is False
+    assert result.artifacts["browserUse"]["planErrors"] == ["planner transient"]
 
 
 def test_playwright_bridge_driver_returns_failed_when_browser_use_plan_action_unsupported(

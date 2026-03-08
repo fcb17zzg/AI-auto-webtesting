@@ -8,6 +8,8 @@ from .contracts import ExecutionContext
 
 BROWSER_USE_ADAPTER_KEY = "browser_use.adapter"
 BROWSER_USE_STATUS_KEY = "browser_use.status"
+BROWSER_USE_PLAN_RETRY_KEY = "browser_use.planRetry"
+BROWSER_USE_PLAN_FALLBACK_KEY = "browser_use.planFallback"
 
 
 @dataclass(slots=True)

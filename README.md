@@ -48,6 +48,8 @@ python -m aut.runner.cli --case cases/product/create_vpc.yaml --var ASCM_URL=htt
 - `--capture-step-screenshot`：步骤截图采集策略（`never` / `on-failure` / `always`，默认 `never`）
 - `--capture-step-log`：开启步骤级日志观测字段（默认关闭）
 - `--enable-browser-use`：开启 browser-use 规划适配（仅 `--run --driver playwright` 生效）
+- `--browser-use-plan-retry`：browser-use 规划失败重试次数（默认 `0`，需配合 `--enable-browser-use`）
+- `--browser-use-plan-fallback`：重试后仍失败时的回退策略（`fail-fast` / `task-mapping`，默认 `fail-fast`）
 - `--allure-results-dir`：当启用 `--run` 时，额外落盘 Allure 实体文件（`*-result.json`、`*-container.json`、附件）
 
 示例（Playwright 真实动作执行）：
@@ -66,6 +68,12 @@ python -m aut.runner.cli --case cases/common/playwright_e2e_demo.yaml --run --dr
 
 ```bash
 python -m aut.runner.cli --case cases/common/playwright_e2e_demo.yaml --run --driver playwright --enable-browser-use --replay-dir .aut/replays
+```
+
+示例（开启规划失败重试并在最终失败后回退 task mapping）：
+
+```bash
+python -m aut.runner.cli --case cases/common/playwright_e2e_demo.yaml --run --driver playwright --enable-browser-use --browser-use-plan-retry 2 --browser-use-plan-fallback task-mapping --replay-dir .aut/replays
 ```
 
 示例（dry-run + Allure 实体落盘）：
@@ -148,6 +156,11 @@ browser-use 可观测性字段（`StepResult.artifacts.browserUse`）：
 - `requestedAction`：规划器请求的动作（标准化为小写）
 - `whitelistDecision`：白名单判定（`allowed` / `rejected` / `not-planned`）
 - `plannedActionCount`：最终被接受并将执行的动作数量
+- `retryConfigured`：配置的规划重试次数
+- `attempts`：本步骤实际规划尝试次数
+- `fallbackPolicy`：规划最终失败后的策略（`fail-fast` / `task-mapping`）
+- `fallbackApplied`：是否触发回退执行
+- `planErrors`：每次规划失败的错误摘要列表
 
 复杂任务拆分协议（browser-use -> 多动作执行）：
 

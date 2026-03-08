@@ -16,6 +16,8 @@ from aut.reporting import (
 from aut.replay import ReplayStore, build_replay_record
 from aut.runner import (
     BROWSER_USE_ADAPTER_KEY,
+    BROWSER_USE_PLAN_FALLBACK_KEY,
+    BROWSER_USE_PLAN_RETRY_KEY,
     BROWSER_USE_STATUS_KEY,
     DryRunDriver,
     ExecutionContext,
@@ -26,6 +28,13 @@ from aut.runner import (
     discover_case_files,
     run_cases_with_pytest,
 )
+
+
+def _non_negative_int(raw_value: str) -> int:
+    value = int(raw_value)
+    if value < 0:
+        raise argparse.ArgumentTypeError("must be >= 0")
+    return value
 
 
 def _collect_new_replay_files(replay_dir: Path, existing: set[Path]) -> list[Path]:
@@ -75,6 +84,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--enable-browser-use",
         action="store_true",
         help="Enable browser-use adapter planning in --run mode (playwright only)",
+    )
+    parser.add_argument(
+        "--browser-use-plan-retry",
+        type=_non_negative_int,
+        default=0,
+        help="Retry count when browser-use planning fails, defaults to 0",
+    )
+    parser.add_argument(
+        "--browser-use-plan-fallback",
+        choices=["fail-fast", "task-mapping"],
+        default="fail-fast",
+        help="Fallback strategy when browser-use planning still fails after retries",
     )
     parser.add_argument(
         "--replay-dir",
@@ -138,6 +159,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.enable_browser_use and (not args.run or args.driver != "playwright"):
         parser.error("--enable-browser-use requires --run --driver playwright")
 
+    if (
+        (args.browser_use_plan_retry > 0 or args.browser_use_plan_fallback != "fail-fast")
+        and not args.enable_browser_use
+    ):
+        parser.error(
+            "--browser-use-plan-retry/--browser-use-plan-fallback require --enable-browser-use"
+        )
+
     if not args.run_pytest and not args.case:
         parser.error("--case is required unless --run-pytest is used")
 
@@ -147,6 +176,8 @@ def main(argv: list[str] | None = None) -> int:
         variables["aut.capture.stepLog"] = args.capture_step_log
         adapter, adapter_status = create_browser_use_adapter(args.enable_browser_use)
         variables[BROWSER_USE_STATUS_KEY] = adapter_status
+        variables[BROWSER_USE_PLAN_RETRY_KEY] = args.browser_use_plan_retry
+        variables[BROWSER_USE_PLAN_FALLBACK_KEY] = args.browser_use_plan_fallback
         if adapter is not None:
             variables[BROWSER_USE_ADAPTER_KEY] = adapter
 
