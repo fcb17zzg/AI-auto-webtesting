@@ -115,6 +115,7 @@ def _build_case_fluctuation_topn(
     per_case_stats: dict[str, dict[str, object]],
     top_n: int = 5,
     min_failure_rate: float = 0.0,
+    min_planner_failure_total: int = 0,
 ) -> dict[str, object]:
     normalized: list[dict[str, object]] = []
     for case_name, stats in per_case_stats.items():
@@ -148,6 +149,7 @@ def _build_case_fluctuation_topn(
         for item in normalized
         if (int(item["failedRuns"]) > 0 or int(item["plannerFailureTotal"]) > 0)
         and float(item["failureRate"]) >= min_failure_rate
+        and int(item["plannerFailureTotal"]) >= min_planner_failure_total
     ]
 
     by_failure_rate = sorted(
@@ -172,6 +174,7 @@ def _build_case_fluctuation_topn(
     return {
         "size": min(top_n, len(filtered)),
         "minFailureRate": min_failure_rate,
+        "minPlannerFailureTotal": min_planner_failure_total,
         "byFailureRate": by_failure_rate[:top_n],
         "byCategoryDistribution": by_category_distribution[:top_n],
     }
@@ -312,6 +315,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=_fraction_between_zero_and_one,
         default=0.0,
         help="Minimum failure rate for including cases in summary.caseFluctuationTopN, defaults to 0",
+    )
+    parser.add_argument(
+        "--stability-case-min-planner-failures",
+        type=_non_negative_int,
+        default=0,
+        help="Minimum plannerFailureTotal for including cases in summary.caseFluctuationTopN, defaults to 0",
     )
     parser.add_argument(
         "--case-glob",
@@ -610,6 +619,7 @@ def main(argv: list[str] | None = None) -> int:
                     per_case_stats=case_stability_stats,
                     top_n=args.stability_case_topn,
                     min_failure_rate=args.stability_case_min_failure_rate,
+                    min_planner_failure_total=args.stability_case_min_planner_failures,
                 ),
             },
             "plannerFailureTrend": planner_failure_trend,

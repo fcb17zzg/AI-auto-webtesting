@@ -147,6 +147,8 @@ python -m aut.runner.cli --run-stability --case-root cases --case-filter playwri
 - `--stability-runs`：重复执行总次数（默认 `10`）
 - `--stability-min-consecutive-pass`：连续通过门槛（默认 `10`，需小于等于 `--stability-runs`）
 - `--stability-case-topn`：`summary.caseFluctuationTopN` 视图尺寸（默认 `5`）
+- `--stability-case-min-failure-rate`：TopN 视图最小失败率过滤阈值（默认 `0.0`）
+- `--stability-case-min-planner-failures`：TopN 视图最小 `plannerFailureTotal` 过滤阈值（默认 `0`）
 
 输出包含：
 
@@ -156,6 +158,7 @@ python -m aut.runner.cli --run-stability --case-root cases --case-filter playwri
 - `summary.plannerFailureStats.byCase`（按 case 统计 planner 失败总数与分类）
 - `summary.caseFluctuationTopN.byFailureRate`（按 case 失败率排序的波动 TopN）
 - `summary.caseFluctuationTopN.byCategoryDistribution`（按失败类别分布复杂度排序的 TopN）
+- `summary.caseFluctuationTopN.minFailureRate/minPlannerFailureTotal`（TopN 过滤阈值）
 - `plannerFailureTrend`（按 run index + case 输出 planner 失败类别趋势）
 - `gate.passed`（门禁是否通过）
 
@@ -167,6 +170,8 @@ CI/夜间任务已纳入稳定性回归：
   - `STABILITY_RUNS=10`
   - `STABILITY_MIN_CONSECUTIVE_PASS=10`
   - `STABILITY_CASE_FLUCTUATION_TOPN=5`
+  - `STABILITY_CASE_FLUCTUATION_MIN_FAILURE_RATE=0.0`
+  - `STABILITY_CASE_FLUCTUATION_MIN_PLANNER_FAILURES=0`
   - `STABILITY_MIN_PASS_RATE=0.95`
   - `STABILITY_MAX_PLANNER_FAILURES=0`
 

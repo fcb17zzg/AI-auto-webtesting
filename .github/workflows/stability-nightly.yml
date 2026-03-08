@@ -25,6 +25,10 @@ on:
         description: "Minimum failure rate to include cases in TopN"
         required: false
         default: "0.0"
+      case_fluctuation_min_planner_failures:
+        description: "Minimum planner failure total to include cases in TopN"
+        required: false
+        default: "0"
       min_pass_rate:
         description: "Alert threshold for summary.passRate"
         required: false
@@ -44,6 +48,7 @@ jobs:
       STABILITY_MIN_CONSECUTIVE_PASS: ${{ inputs.min_consecutive_pass || '10' }}
       STABILITY_CASE_FLUCTUATION_TOPN: ${{ inputs.case_fluctuation_topn || '5' }}
       STABILITY_CASE_FLUCTUATION_MIN_FAILURE_RATE: ${{ inputs.case_fluctuation_min_failure_rate || '0.0' }}
+      STABILITY_CASE_FLUCTUATION_MIN_PLANNER_FAILURES: ${{ inputs.case_fluctuation_min_planner_failures || '0' }}
       STABILITY_MIN_PASS_RATE: ${{ inputs.min_pass_rate || '0.95' }}
       STABILITY_MAX_PLANNER_FAILURES: ${{ inputs.max_planner_failures || '0' }}
 
@@ -75,6 +80,7 @@ jobs:
             --stability-min-consecutive-pass "${STABILITY_MIN_CONSECUTIVE_PASS}" \
             --stability-case-topn "${STABILITY_CASE_FLUCTUATION_TOPN}" \
             --stability-case-min-failure-rate "${STABILITY_CASE_FLUCTUATION_MIN_FAILURE_RATE}" \
+            --stability-case-min-planner-failures "${STABILITY_CASE_FLUCTUATION_MIN_PLANNER_FAILURES}" \
             > stability-report.json
           cli_exit_code=$?
           set -e
