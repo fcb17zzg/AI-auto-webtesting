@@ -610,7 +610,7 @@ def test_cli_run_injects_browser_use_adapter_when_enabled(
     monkeypatch.setattr(
         cli,
         "create_browser_use_adapter",
-        lambda enabled: (
+        lambda enabled, **kwargs: (
             _FakeAdapter() if enabled else None,
             {
                 "enabled": bool(enabled),
@@ -675,7 +675,7 @@ def test_cli_run_sets_browser_use_degraded_status_when_dependency_missing(
     monkeypatch.setattr(
         cli,
         "create_browser_use_adapter",
-        lambda enabled: (
+        lambda enabled, **kwargs: (
             None,
             {
                 "enabled": bool(enabled),
@@ -748,6 +748,95 @@ def test_cli_rejects_browser_use_plan_strategy_without_enable_browser_use() -> N
         )
 
 
+def test_cli_rejects_browser_use_planner_options_without_enable_browser_use() -> None:
+    with pytest.raises(SystemExit):
+        cli.main(
+            [
+                "--case",
+                "product/create_vpc.yaml",
+                "--run",
+                "--driver",
+                "playwright",
+                "--browser-use-planner",
+                "real-model",
+            ]
+        )
+
+
+def test_cli_run_passes_browser_use_planner_options_to_factory(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    captured_factory_args: dict[str, object] = {}
+
+    class _FakeAdapter:
+        pass
+
+    class _FakeEngine:
+        def __init__(self, driver, assertion_executor=None):
+            _ = driver, assertion_executor
+
+        def run_case(self, case, context):
+            _ = case, context
+            return [StepResult(task="demo", success=True, message="ok")]
+
+    def _fake_factory(enabled, **kwargs):
+        captured_factory_args["enabled"] = enabled
+        captured_factory_args.update(kwargs)
+        return _FakeAdapter(), {
+            "enabled": True,
+            "available": True,
+            "mode": "real-model",
+            "fallback": "none",
+        }
+
+    monkeypatch.setattr(cli, "ExecutionEngine", _FakeEngine)
+    monkeypatch.setattr(cli, "create_browser_use_adapter", _fake_factory)
+
+    exit_code = cli.main(
+        [
+            "--case",
+            "product/create_vpc.yaml",
+            "--case-root",
+            str(project_root / "cases"),
+            "--replay-dir",
+            str(tmp_path / "replays"),
+            "--run",
+            "--driver",
+            "playwright",
+            "--enable-browser-use",
+            "--browser-use-planner",
+            "real-model",
+            "--browser-use-model",
+            "gpt-5.3-codex",
+            "--browser-use-planner-endpoint",
+            "http://planner.example/plan",
+            "--browser-use-planner-api-key",
+            "token-001",
+            "--var",
+            "ASCM_URL=http://example.com",
+            "--var",
+            "USERNAME=tester",
+            "--var",
+            "PASSWORD=secret",
+            "--var",
+            "DEFAULT_ORG_ID=org-1",
+            "--var",
+            "VPC_NAME_UNIQUE=vpc-001",
+        ]
+    )
+
+    _ = capsys.readouterr()
+    assert exit_code == 0
+    assert captured_factory_args["enabled"] is True
+    assert captured_factory_args["planner"] == "real-model"
+    assert captured_factory_args["model"] == "gpt-5.3-codex"
+    assert captured_factory_args["planner_endpoint"] == "http://planner.example/plan"
+    assert captured_factory_args["planner_api_key"] == "token-001"
+
+
 def test_cli_run_injects_browser_use_plan_strategy_when_configured(
     monkeypatch,
     tmp_path: Path,
@@ -772,7 +861,7 @@ def test_cli_run_injects_browser_use_plan_strategy_when_configured(
     monkeypatch.setattr(
         cli,
         "create_browser_use_adapter",
-        lambda enabled: (
+        lambda enabled, **kwargs: (
             _FakeAdapter() if enabled else None,
             {
                 "enabled": bool(enabled),

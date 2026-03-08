@@ -10,6 +10,7 @@
 - M4-3 进行中：已接入模型驱动规划器最小桩（`model-stub`，`stub-rule-v1`）替换 passthrough 适配层
 - M4-3 进行中：稳定性回归新增 planner 失败分类统计与趋势输出（按 run index 聚合）
 - M4-3 进行中：`--run-stability` 已纳入 CI 夜间任务并固化告警阈值（连续通过/通过率/planner 失败数）
+- M4-3 进行中：已提供 `model-stub/real-model` 规划器切换开关与 HTTP 接口契约文档（`docs/browser_use_planner_contract.md`）
 
 ## 已完成
 
@@ -100,6 +101,8 @@
 - M4-3 第三项完成：`--run-stability` 输出新增 `plannerFailureStats` 与 `plannerFailureTrend`，支持按类别统计与趋势跟踪
 - M4-3 第四项完成：新增 CI 夜间稳定性回归工作流（`.github/workflows/stability-nightly.yml`），默认执行 `--run-stability` 并归档 `stability-report.json`
 - 固化夜间告警阈值：`STABILITY_RUNS=10`、`STABILITY_MIN_CONSECUTIVE_PASS=10`、`STABILITY_MIN_PASS_RATE=0.95`、`STABILITY_MAX_PLANNER_FAILURES=0`
+- M4-3 第五项完成：CLI 新增 `--browser-use-planner/--browser-use-model/--browser-use-planner-endpoint/--browser-use-planner-api-key`，支持从 `model-stub` 切换到 `real-model`
+- 补充规划器接口契约文档：定义 real-model 请求/响应结构、降级状态与错误语义（`docs/browser_use_planner_contract.md`）
 
 ## 进行中
 
@@ -107,8 +110,8 @@
 
 ## 下一步
 
-1. 增补 model-stub 到真实模型规划器的切换开关与接口契约文档
-2. 为 plannerFailure 分类补充 case 级维度（定位高波动用例）
+1. 为 plannerFailure 分类补充 case 级维度（定位高波动用例）
+2. 增补 real-model 规划器鉴权与超时重试策略（生产参数建议）
 
 ## 风险
 

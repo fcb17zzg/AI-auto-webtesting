@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
+
 from aut.runner.browser_use_adapter import (
     BrowserUsePlan,
     BrowserUseModelStubAdapter,
+    BrowserUseRealModelAdapter,
     create_browser_use_adapter,
 )
 from aut.runner.contracts import ExecutionContext
@@ -65,7 +68,98 @@ def test_create_browser_use_adapter_returns_model_stub_when_dependency_available
     assert status["enabled"] is True
     assert status["available"] is True
     assert status["mode"] == "model-stub"
-    assert status["planner"] == "stub-rule-v1"
+    assert status["planner"] == "model-stub"
+    assert status["model"] == "stub-rule-v1"
+
+
+def test_create_browser_use_adapter_returns_degraded_for_real_model_without_endpoint(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr("aut.runner.browser_use_adapter.find_spec", lambda _: object())
+
+    adapter, status = create_browser_use_adapter(
+        True,
+        planner="real-model",
+        model="gpt-5.3-codex",
+        planner_endpoint="",
+    )
+
+    assert adapter is None
+    assert status["mode"] == "degraded"
+    assert status["reason"] == "planner-endpoint-missing"
+    assert status["planner"] == "real-model"
+    assert status["model"] == "gpt-5.3-codex"
+
+
+def test_create_browser_use_adapter_returns_real_model_adapter_when_configured(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr("aut.runner.browser_use_adapter.find_spec", lambda _: object())
+
+    adapter, status = create_browser_use_adapter(
+        True,
+        planner="real-model",
+        model="gpt-5.3-codex",
+        planner_endpoint="http://planner.example/plan",
+        planner_api_key="secret-token",
+    )
+
+    assert isinstance(adapter, BrowserUseRealModelAdapter)
+    assert status["mode"] == "real-model"
+    assert status["planner"] == "real-model"
+    assert status["model"] == "gpt-5.3-codex"
+    assert status["endpoint"] == "http://planner.example/plan"
+
+
+def test_real_model_adapter_plan_maps_http_response(monkeypatch) -> None:
+    context = ExecutionContext(case_name="demo", run_id="run-001")
+    adapter = BrowserUseRealModelAdapter(
+        endpoint="http://planner.example/plan",
+        model="gpt-5.3-codex",
+        api_key="api-key",
+    )
+
+    captured_request: dict[str, object] = {}
+
+    class _FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            _ = exc_type, exc, tb
+            return None
+
+        def read(self):
+            payload = {
+                "action": "click",
+                "target": "role=button",
+                "value": "登录",
+                "metadata": {"traceId": "trace-001"},
+            }
+            return json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+    def _fake_urlopen(request, timeout):
+        _ = timeout
+        captured_request["url"] = request.full_url
+        captured_request["authorization"] = request.headers.get("Authorization")
+        body = request.data.decode("utf-8")
+        captured_request["body"] = json.loads(body)
+        return _FakeResponse()
+
+    monkeypatch.setattr("aut.runner.browser_use_adapter.urllib_request.urlopen", _fake_urlopen)
+
+    plan = adapter.plan(
+        task="点击登录",
+        mapped_action={"action": "click", "target": "role=button", "value": "登录"},
+        context=context,
+    )
+
+    assert captured_request["url"] == "http://planner.example/plan"
+    assert captured_request["authorization"] == "Bearer api-key"
+    assert captured_request["body"]["model"] == "gpt-5.3-codex"
+    assert plan.action == "click"
+    assert plan.metadata["planner"]["kind"] == "real-model"
+    assert plan.metadata["source"] == "browser-use-real-model"
 
 
 def test_browser_use_plan_to_dict_contains_all_fields() -> None:

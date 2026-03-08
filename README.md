@@ -48,6 +48,10 @@ python -m aut.runner.cli --case cases/product/create_vpc.yaml --var ASCM_URL=htt
 - `--capture-step-screenshot`：步骤截图采集策略（`never` / `on-failure` / `always`，默认 `never`）
 - `--capture-step-log`：开启步骤级日志观测字段（默认关闭）
 - `--enable-browser-use`：开启 browser-use 规划适配（仅 `--run --driver playwright` 生效）
+- `--browser-use-planner`：规划后端选择（`model-stub` / `real-model`，默认 `model-stub`）
+- `--browser-use-model`：规划模型名称（默认 `stub-rule-v1`）
+- `--browser-use-planner-endpoint`：`real-model` 规划 HTTP 接口地址
+- `--browser-use-planner-api-key`：`real-model` 规划接口可选鉴权 Token
 - `--browser-use-plan-retry`：browser-use 规划失败重试次数（默认 `0`，需配合 `--enable-browser-use`）
 - `--browser-use-plan-fallback`：重试后仍失败时的回退策略（`fail-fast` / `task-mapping`，默认 `fail-fast`）
 - `--allure-results-dir`：当启用 `--run` 时，额外落盘 Allure 实体文件（`*-result.json`、`*-container.json`、附件）
@@ -74,6 +78,12 @@ python -m aut.runner.cli --case cases/common/playwright_e2e_demo.yaml --run --dr
 
 ```bash
 python -m aut.runner.cli --case cases/common/playwright_e2e_demo.yaml --run --driver playwright --enable-browser-use --browser-use-plan-retry 2 --browser-use-plan-fallback task-mapping --replay-dir .aut/replays
+```
+
+示例（切换到 real-model 规划器）：
+
+```bash
+python -m aut.runner.cli --case cases/common/playwright_e2e_demo.yaml --run --driver playwright --enable-browser-use --browser-use-planner real-model --browser-use-model gpt-5.3-codex --browser-use-planner-endpoint http://planner.example/plan --browser-use-planner-api-key <token> --replay-dir .aut/replays
 ```
 
 示例（dry-run + Allure 实体落盘）：
@@ -207,6 +217,8 @@ browser-use 可观测性字段（`StepResult.artifacts.browserUse`）：
 - 多动作模式：在 `BrowserUsePlan.metadata.actions` 传入动作数组，每个元素形如 `{action, target, value, options?}`
 - 驱动会逐个动作按顺序执行，并在 `StepResult.artifacts.execution.actions` 输出完整执行计划
 - `StepResult.artifacts.execution.action` 保留为“最后一个已执行动作”，便于兼容既有消费者
+
+模型规划器接口契约见：`docs/browser_use_planner_contract.md`
 
 执行来源字段（`StepResult.artifacts.execution.source`）：
 

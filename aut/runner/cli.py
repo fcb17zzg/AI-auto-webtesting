@@ -116,6 +116,27 @@ def build_parser() -> argparse.ArgumentParser:
         help="Enable browser-use adapter planning in --run mode (playwright only)",
     )
     parser.add_argument(
+        "--browser-use-planner",
+        choices=["model-stub", "real-model"],
+        default="model-stub",
+        help="Planner backend for browser-use adapter, defaults to model-stub",
+    )
+    parser.add_argument(
+        "--browser-use-model",
+        default="stub-rule-v1",
+        help="Planner model name for browser-use adapter",
+    )
+    parser.add_argument(
+        "--browser-use-planner-endpoint",
+        default="",
+        help="HTTP endpoint for real-model planner backend",
+    )
+    parser.add_argument(
+        "--browser-use-planner-api-key",
+        default="",
+        help="Optional API key for real-model planner endpoint",
+    )
+    parser.add_argument(
         "--browser-use-plan-retry",
         type=_non_negative_int,
         default=0,
@@ -215,6 +236,20 @@ def main(argv: list[str] | None = None) -> int:
             "--browser-use-plan-retry/--browser-use-plan-fallback require --enable-browser-use"
         )
 
+    if (
+        (
+            args.browser_use_planner != "model-stub"
+            or args.browser_use_model != "stub-rule-v1"
+            or args.browser_use_planner_endpoint
+            or args.browser_use_planner_api_key
+        )
+        and not args.enable_browser_use
+    ):
+        parser.error(
+            "--browser-use-planner/--browser-use-model/--browser-use-planner-endpoint/"
+            "--browser-use-planner-api-key require --enable-browser-use"
+        )
+
     if args.run_stability and args.stability_min_consecutive_pass > args.stability_runs:
         parser.error("--stability-min-consecutive-pass cannot be greater than --stability-runs")
 
@@ -225,7 +260,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.run:
         variables["aut.capture.stepScreenshot"] = args.capture_step_screenshot
         variables["aut.capture.stepLog"] = args.capture_step_log
-        adapter, adapter_status = create_browser_use_adapter(args.enable_browser_use)
+        adapter, adapter_status = create_browser_use_adapter(
+            args.enable_browser_use,
+            planner=args.browser_use_planner,
+            model=args.browser_use_model,
+            planner_endpoint=args.browser_use_planner_endpoint,
+            planner_api_key=args.browser_use_planner_api_key,
+        )
         variables[BROWSER_USE_STATUS_KEY] = adapter_status
         variables[BROWSER_USE_PLAN_RETRY_KEY] = args.browser_use_plan_retry
         variables[BROWSER_USE_PLAN_FALLBACK_KEY] = args.browser_use_plan_fallback
