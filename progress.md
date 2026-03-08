@@ -17,18 +17,21 @@
 - 完成 DSL 解析、示例用例与测试验证
 - 新增执行抽象：`Driver` 协议、`ExecutionContext`、`StepResult`
 - 新增 `ExecutionEngine` 与 `DryRunDriver`
-- 新增执行引擎单元测试并通过（当前总计 4 条测试）
+- 新增执行引擎单元测试并通过
+- 新增回放结构：`ReplayRecord`、`ReplayStepRecord`、`ReplayStore`
+- CLI 新增 `--run` 与 `--replay-dir`，可执行 dry-run 并落盘 replay 文件
+- 新增回放与 CLI 集成测试并通过（当前总计 7 条测试）
 
 ## 进行中
 
-- 按“一个功能一个验证”节奏推进下一功能（回放结构设计）
+- 按“一个功能一个验证”节奏推进下一功能（断言系统最小接口）
 
 ## 下一步
 
-1. 定义 driver 抽象接口
-2. 增加回放文件结构设计
-3. 将 CLI 串联 ExecutionEngine（dry-run 可执行）
-4. 接入 pytest 与更完整的测试集
+1. 设计并实现最小断言接口（`playwright`/`validator` 先占位）
+2. 在 `ExecutionEngine` 中串联步骤断言执行
+3. 补充失败上下文输出与回放关联字段
+4. 为断言链路补充单元测试与示例 case
 
 ## 风险
 
