@@ -45,16 +45,20 @@
 - 新增真实 Playwright 断言执行器：支持在 `ExecutionContext.variables["playwright.page"]` 可用时执行 `expect(locator).assertion()`
 - Playwright 驱动执行链路接入真实断言执行器；无 runtime page 时回退结构化校验，兼容 dry-run 主链路
 - 新增断言执行器单测与 CLI 接入测试并通过（当前总计 37 条测试）
+- 新增断言失败截图采集策略：真实 Playwright 断言失败时自动采集 `page.screenshot(full_page=True)` 并注入附件元数据
+- 执行引擎新增断言附件聚合：将 assertion artifacts 提升为 step artifacts，随 replay 一并落盘
+- Allure 实体落盘链路支持写出失败截图附件（png）与失败上下文（txt）
+- 新增断言附件与 Allure 落盘测试并通过（当前总计 38 条测试）
 
 ## 进行中
 
-- 增加断言失败截图与附件采集策略
+- 将 task mapping 动作计划接入真实 Playwright 浏览器执行链路
 
 ## 下一步
 
-1. 增加断言失败截图与附件采集策略
-2. 将 task mapping 动作计划接入真实 Playwright 浏览器执行链路
-3. 规划 browser-use 适配层接口草案与验证路径
+1. 将 task mapping 动作计划接入真实 Playwright 浏览器执行链路
+2. 规划 browser-use 适配层接口草案与验证路径
+3. 增补端到端样例（含真实浏览器执行、断言、附件、报告）
 
 ## 风险
 

@@ -23,6 +23,10 @@ class _FakePage:
         _ = text, exact
         return _FakeLocator()
 
+    def screenshot(self, full_page: bool = True):
+        _ = full_page
+        return b"fake-png-bytes"
+
 
 def test_playwright_assertion_executor_keeps_fallback_mode_without_runtime_page() -> None:
     executor = PlaywrightAssertionExecutor()
@@ -123,3 +127,8 @@ def test_playwright_assertion_executor_returns_failed_when_expectation_throws(mo
     assert len(results) == 1
     assert results[0].passed is False
     assert "playwright assertion failed" in results[0].reason
+    attachments = results[0].artifacts["attachments"]
+    assert len(attachments) == 1
+    assert attachments[0]["name"] == "assertion-failure-screenshot"
+    assert attachments[0]["contentType"] == "image/png"
+    assert attachments[0]["encoding"] == "base64"

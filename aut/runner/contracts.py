@@ -28,6 +28,7 @@ class AssertionResult:
     method: str
     passed: bool
     reason: str = ""
+    artifacts: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -36,6 +37,7 @@ class AssertionResult:
             "method": self.method,
             "passed": self.passed,
             "reason": self.reason,
+            "artifacts": self.artifacts,
         }
 
 

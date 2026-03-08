@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from base64 import b64decode
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -16,7 +17,7 @@ class AllureAttachment:
     name: str
     source: str
     content_type: str
-    content: str
+    content: str | bytes
 
     def reference(self) -> dict[str, str]:
         return {
@@ -33,6 +34,7 @@ def build_allure_entities(record: ReplayRecord) -> dict[str, Any]:
     container_uuid = str(uuid4())
 
     failed_step = next((item for item in mapped["steps"] if item["status"] == "failed"), None)
+    failed_step_record = next((item for item in record.steps if not item.success), None)
     attachments: list[AllureAttachment] = []
     if failed_step is not None:
         attachment_source = f"{uuid4()}-attachment.txt"
@@ -52,6 +54,9 @@ def build_allure_entities(record: ReplayRecord) -> dict[str, Any]:
                 content="\n".join(detail_lines),
             )
         )
+
+    for item in _extract_step_attachments(failed_step_record):
+        attachments.append(item)
 
     result_payload: dict[str, Any] = {
         "uuid": result_uuid,
@@ -107,7 +112,10 @@ def write_allure_entities(record: ReplayRecord, output_dir: str | Path) -> dict[
     attachment_files: list[Path] = []
     for attachment in attachments:
         attachment_file = output_path / attachment.source
-        attachment_file.write_text(attachment.content, encoding="utf-8")
+        if isinstance(attachment.content, bytes):
+            attachment_file.write_bytes(attachment.content)
+        else:
+            attachment_file.write_text(attachment.content, encoding="utf-8")
         attachment_files.append(attachment_file)
 
     return {
@@ -115,3 +123,52 @@ def write_allure_entities(record: ReplayRecord, output_dir: str | Path) -> dict[
         "containerFile": container_file,
         "attachmentFiles": attachment_files,
     }
+
+
+def _extract_step_attachments(step_record: Any) -> list[AllureAttachment]:
+    if step_record is None:
+        return []
+
+    raw_attachments = step_record.artifacts.get("attachments", [])
+    if not isinstance(raw_attachments, list):
+        return []
+
+    results: list[AllureAttachment] = []
+    for index, raw_item in enumerate(raw_attachments, start=1):
+        if not isinstance(raw_item, dict):
+            continue
+
+        content_type = str(raw_item.get("contentType", "text/plain"))
+        encoding = str(raw_item.get("encoding", ""))
+        name = str(raw_item.get("name", f"attachment-{index}"))
+        extension = ".png" if content_type == "image/png" else ".txt"
+        source = f"{uuid4()}-attachment{extension}"
+
+        content = raw_item.get("content", "")
+        if encoding == "base64":
+            if not isinstance(content, str):
+                continue
+            try:
+                decoded = b64decode(content)
+            except Exception:
+                continue
+            results.append(
+                AllureAttachment(
+                    name=name,
+                    source=source,
+                    content_type=content_type,
+                    content=decoded,
+                )
+            )
+            continue
+
+        results.append(
+            AllureAttachment(
+                name=name,
+                source=source,
+                content_type=content_type,
+                content=str(content),
+            )
+        )
+
+    return results

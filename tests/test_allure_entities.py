@@ -24,6 +24,16 @@ def _build_failed_record() -> ReplayRecord:
                 task="step-2",
                 success=False,
                 message="assertion failed",
+                artifacts={
+                    "attachments": [
+                        {
+                            "name": "assertion-failure-screenshot",
+                            "contentType": "image/png",
+                            "encoding": "base64",
+                            "content": "ZmFrZS1wbmctYnl0ZXM=",
+                        }
+                    ]
+                },
             ),
         ],
     )
@@ -36,8 +46,9 @@ def test_build_allure_entities_contains_result_container_and_attachment() -> Non
 
     assert entities["result"]["status"] == "failed"
     assert entities["container"]["children"] == [entities["result"]["uuid"]]
-    assert len(entities["attachments"]) == 1
+    assert len(entities["attachments"]) == 2
     assert entities["attachments"][0].name == "failure-context"
+    assert entities["attachments"][1].name == "assertion-failure-screenshot"
 
 
 def test_write_allure_entities_persists_expected_files(tmp_path: Path) -> None:
@@ -51,11 +62,16 @@ def test_write_allure_entities_persists_expected_files(tmp_path: Path) -> None:
 
     assert result_file.exists()
     assert container_file.exists()
-    assert len(attachment_files) == 1
+    assert len(attachment_files) == 2
     assert attachment_files[0].exists()
+    assert attachment_files[1].exists()
 
     result_payload = json.loads(result_file.read_text(encoding="utf-8"))
     container_payload = json.loads(container_file.read_text(encoding="utf-8"))
 
     assert result_payload["uuid"] in container_payload["children"]
     assert result_payload["attachments"][0]["name"] == "failure-context"
+    assert result_payload["attachments"][1]["name"] == "assertion-failure-screenshot"
+
+    screenshot_file = next(path for path in attachment_files if path.suffix == ".png")
+    assert screenshot_file.read_bytes() == b"fake-png-bytes"

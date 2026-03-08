@@ -2,7 +2,7 @@ from pathlib import Path
 
 from aut.dsl.models import ResolvedCase, ResolvedStep
 from aut.runner import DryRunDriver, ExecutionContext, ExecutionEngine
-from aut.runner.contracts import Driver, StepResult
+from aut.runner.contracts import AssertionResult, AssertionExecutor, Driver, StepResult
 from aut.runner.playwright_bridge_driver import PlaywrightBridgeDriver
 
 
@@ -114,6 +114,60 @@ def test_execution_engine_stops_when_assertion_failed() -> None:
     assert results[-1].success is False
     assert "assertion failed" in results[-1].message
     assert results[-1].artifacts["assertions"][0]["reason"] == "forced assertion failure"
+
+
+class _AttachmentAssertionExecutor(AssertionExecutor):
+    def evaluate(self, expected, context):
+        _ = expected, context
+        return [
+            AssertionResult(
+                type="playwright",
+                locator='get_by_text("boom")',
+                method="to_be_visible()",
+                passed=False,
+                reason="playwright assertion failed",
+                artifacts={
+                    "attachments": [
+                        {
+                            "name": "assertion-failure-screenshot",
+                            "contentType": "image/png",
+                            "encoding": "base64",
+                            "content": "ZmFrZQ==",
+                        }
+                    ]
+                },
+            )
+        ]
+
+
+def test_execution_engine_collects_assertion_attachments_to_step_artifacts() -> None:
+    case = ResolvedCase(
+        name="demo",
+        path=Path("demo.yaml"),
+        description="",
+        steps=[
+            ResolvedStep(
+                task="step-1",
+                source=Path("demo.yaml"),
+                expected=[
+                    {
+                        "type": "playwright",
+                        "locator": 'get_by_text("boom")',
+                        "method": "to_be_visible()",
+                    }
+                ],
+            )
+        ],
+    )
+    context = ExecutionContext(case_name="demo", run_id="run-004")
+    engine = ExecutionEngine(DryRunDriver(), assertion_executor=_AttachmentAssertionExecutor())
+
+    results = engine.run_case(case, context)
+
+    assert len(results) == 1
+    assert results[0].success is False
+    assert "attachments" in results[0].artifacts
+    assert results[0].artifacts["attachments"][0]["name"] == "assertion-failure-screenshot"
 
 
 def test_playwright_bridge_driver_marks_dependency_missing_when_unavailable(

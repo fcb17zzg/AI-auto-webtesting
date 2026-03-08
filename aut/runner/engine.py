@@ -22,6 +22,13 @@ class ExecutionEngine:
             if result.success and step.expected:
                 assertions = self.assertion_executor.evaluate(step.expected, context)
                 result.artifacts["assertions"] = [item.to_dict() for item in assertions]
+                attachment_items = [
+                    attachment
+                    for item in assertions
+                    for attachment in item.artifacts.get("attachments", [])
+                ]
+                if attachment_items:
+                    result.artifacts["attachments"] = attachment_items
                 first_failed = next((item for item in assertions if not item.passed), None)
                 if first_failed is not None:
                     result.success = False

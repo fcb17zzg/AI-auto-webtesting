@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import base64
 from importlib.util import find_spec
 from typing import Any
 
@@ -166,13 +167,38 @@ class PlaywrightAssertionExecutor:
                 reason="",
             )
         except Exception as exc:
+            screenshot_attachment = self._capture_failure_screenshot(page)
+            artifacts = {}
+            if screenshot_attachment is not None:
+                artifacts["attachments"] = [screenshot_attachment]
             return AssertionResult(
                 type="playwright",
                 locator=locator,
                 method=method,
                 passed=False,
                 reason=f"playwright assertion failed: {exc}",
+                artifacts=artifacts,
             )
+
+    def _capture_failure_screenshot(self, page: Any) -> dict[str, Any] | None:
+        screenshot = getattr(page, "screenshot", None)
+        if screenshot is None:
+            return None
+
+        try:
+            content = screenshot(full_page=True)
+        except Exception:
+            return None
+
+        if not isinstance(content, (bytes, bytearray)):
+            return None
+
+        return {
+            "name": "assertion-failure-screenshot",
+            "contentType": "image/png",
+            "encoding": "base64",
+            "content": base64.b64encode(bytes(content)).decode("ascii"),
+        }
 
     def _resolve_expect(self, locator: Any):
         from playwright.sync_api import expect

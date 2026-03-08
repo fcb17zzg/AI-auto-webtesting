@@ -100,3 +100,9 @@ python -m aut.runner.cli --run-pytest --case-root cases --case-filter vpc --repl
 
 - 当 `ExecutionContext.variables["playwright.page"]` 可用时，会尝试执行真实 `expect(locator).method(...)`
 - 当运行态 page 尚不可用时，会回退到结构化断言校验，保持现有 dry-run 与桥接链路稳定
+
+断言失败附件策略：
+
+- 真实 Playwright 断言失败时，会尝试采集整页截图（`page.screenshot(full_page=True)`）
+- 截图会以附件元数据写入 replay step artifacts，并在 Allure 落盘时输出为 png 附件
+- 失败上下文仍会输出文本附件，便于与截图联合排障
